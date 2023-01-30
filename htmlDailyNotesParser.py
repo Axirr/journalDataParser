@@ -1,25 +1,44 @@
-from dataFormatList import getDataFormatList, earliestDate, latestDate
+from myDataFormatList import getDataFormatList
+from globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE
 import re
 
-NULL_VALUE = "null"
-OUTPUT_FILENAME = "output.csv"
-INPUT_FILENAME = 'daily2022export.nnex'
-
-'''
-Example data formats:
+# Date bounds for daily entry parsing
 earliestDate = "september 11, 2022"
-latestDate = "november 14, 2022"
-'''
+latestDateNotInclusive = "december 6, 2022"
+
+doConvertOldDataToNewDataFormat = True
+
+hoursToMinutesFields = {
+    'productiveHours': 'productiveMinutes',
+    'programmingHours': 'programmingMinutes',
+    'walkingHours': 'walkingMinutes',
+    'socialHours': 'socialMinutes',
+    'recreationHours': 'recreationMinutes',
+    'gameHours': 'gameMinutes',
+    'TVHours': 'TVminutes',
+    'readingHours': 'readingMinutes',
+    'activeHours': 'activeMinutes',
+}
+
+reverseRatingFields = {
+    'wakeupTirednessRating': 'wakeupRestednessRating'
+}
+
+convertZeroThreeToZeroSix = {
+    'insomniaRating': 'insomniaRating',
+    'clarityRating': 'clarityRating',
+    'productivityRating': 'productivityRating'
+}
 
 def main():
-    f = open(INPUT_FILENAME,'r')
+    f = open(PARSER_INPUT_FILENAME,'r')
     line = f.readline().lower()
     parsedData = []
     currentDate = ""
 
     dataFormatList = getDataFormatList()
 
-    logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDate))
+    logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDateNotInclusive))
     logPrin('\n')
 
     # Header for CSV file
@@ -37,10 +56,12 @@ def main():
         line = f.readline()
 
 
+    # indentLines = []
+    # previousLine = ""
     while (line):
         line = line.lower()
 
-        if latestDate in line:
+        if latestDateNotInclusive in line:
             break
         
         # Check for preliminary match for date using lowercase months
@@ -71,7 +92,7 @@ def main():
                     currentDate = workingLine
                     dataDict = {}
                     for dataname in dataFieldNames:
-                        dataDict[dataname] = NULL_VALUE
+                        dataDict[dataname] = PARSER_NULL_VALUE
                     line = f.readline()
                     break
                 else:
@@ -83,21 +104,50 @@ def main():
         for key in resultDict:
             dataDict[key] = resultDict[key]
 
+        previousLine = line
         line = f.readline()
+    
+    if doConvertOldDataToNewDataFormat:
+        tempLine = topLine.split(',')
+        for i in range(len(tempLine)):
+            item = tempLine[i]
+            if item in hoursToMinutesFields:
+                tempLine[i] = hoursToMinutesFields[item]
+            elif item in reverseRatingFields:
+                tempLine[i] = reverseRatingFields[item]
+            elif item in convertZeroThreeToZeroSix:
+                tempLine[i] = convertZeroThreeToZeroSix[item]
+        topLine = ','.join(tempLine)
 
     # Append last date's data
     if currentDate != "":
+        dataDict['date'] = currentDate
         resultList = []
         for key in dataDict:
             resultList.append(dataDict[key])
-        resultList[-1] = resultList[-1] + "\n"
+        # resultList[-1] = resultList[-1] + "\n"
         parsedData.append(resultList)
+
+    mySplitLine = topLine.split(',')
+    mySplitParsed = parsedData[-2]
+    for i in range(len(mySplitLine)):
+        print(mySplitLine[i], end = " ")
+        print(mySplitParsed[i], end=" ")
+        print()
+    # print(parsedData[-2])
+    printIndex = 7
+    print(topLine.split(',')[printIndex])
+    print(parsedData[-2][printIndex])
+    print(parsedData[-1][printIndex])
     
     dataFieldNamesLength = len(topLine.split(','))
 
     # Write data to file
-    writeFile = open(OUTPUT_FILENAME, 'w')
+    writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
+    # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
     writeFile.write(topLine + '\n')
+
+
     for line in parsedData:
         lineLength = len(line)
         # Check data in line for every heading fieldname
@@ -115,15 +165,39 @@ def readDataFormatList(dataFormatList, f, line, currentDate):
             returnedData = parseMultiLine(dataFormat,f, currentDate, line)
             if (len(returnedData) == 2):
                 returnDict[returnedData[0]] = returnedData[1]
-                # Subdata parsing contingent on successfully getting top level data
-                #   may be an issue since some top levels don't have data
-                if len(dataFormat.subDataFormats) > 0:
-                    oldLine = f.tell()
-                    line = f.readline()
-                    subDataDict = readDataFormatList(dataFormat.subDataFormats, f, line, currentDate)
+            if len(dataFormat.subDataFormats) > 0:
+                oldLine = f.tell()
+                line = f.readline()
+                if "<ul>" in line:
+                    # line = f.readline().lower()
+                    # subDataDict = readDataFormatList(dataFormat.subDataFormats, f, line, currentDate, listBounds = True)
+                    subDataDict = subListDataSearch(dataFormat.subDataFormats, f, line, currentDate)
+                    pass
                     for key in subDataDict:
                         returnDict[key] = subDataDict[key]
+                else:
+                    f.seek(oldLine)
     return returnDict
+
+def subListDataSearch(dataFormatList, f, line, currentDate):
+    resultDict = {}
+    # line = f.readline().lower()
+    firstLine = f.tell()
+    for format in dataFormatList:
+        ulCount = 1
+        resultDict[format.finalName] = PARSER_NULL_VALUE
+        while ulCount > 0:
+            line = f.readline().lower()
+            if "<ul>" in line:  ulCount += 1
+            if "</ul>" in line:  ulCount -= 1
+            line = line.lower()
+            if format.searchName in line:
+                returnedData = sharedDataParse(line, format.finalName, format.separator, currentDate, format.parseType)
+                if len(returnedData) == 2:
+                    resultDict[returnedData[0]] = returnedData[1]
+                break
+        f.seek(firstLine)
+    return resultDict
     
 
 def dataCommonStrip(workingLine, separator, removalList = []):
@@ -140,13 +214,15 @@ def dataCommonStrip(workingLine, separator, removalList = []):
         logPrin(workingLine)
         raise Exception("ERROR: SEPARATOR NOT FOUND")
 
-def sharedDataParse(line, fieldName, separator, currentDate, useDefaultRemoval = True, validType = "float", isNullAllowed=True, customRemoval = []):
+def sharedDataParse(line, fieldName, separator, currentDate, validType, useDefaultRemoval = True, isNullAllowed=True, customRemoval = []):
     resultList = []
     isParseError = False
     workingLine = ""
     removalList = customRemoval
+    if fieldName == "EBreathingType":
+        pass
     if useDefaultRemoval:
-        removalList += ['<b>', '</b>', '<li>', '</li>', '<br />', '&nbsp;', ';'] 
+        removalList += ['<b>', '</b>', '<li>', '</li>', '<br />', '&nbsp;', ';', '\n'] 
     try:
         workingLine = dataCommonStrip(line, separator, removalList)
     except Exception as myE:
@@ -156,10 +232,31 @@ def sharedDataParse(line, fieldName, separator, currentDate, useDefaultRemoval =
         try:
             if validType == "float":
                 float(workingLine)
+                if doConvertOldDataToNewDataFormat:
+                    if fieldName in hoursToMinutesFields:
+                        workingLine = str(int(60 * float(workingLine)))
+                        # fieldName = hoursToMinutesFields[fieldName]
                 resultList.append(fieldName)
                 resultList.append(workingLine)
             elif validType == "int":
                 int(workingLine)
+                if doConvertOldDataToNewDataFormat:
+                    if fieldName in reverseRatingFields:
+                        oldRatings = [0,1,2,3]
+                        newRatings = ['0','5','3','1']
+                        value = int(workingLine)
+                        if value in oldRatings:
+                            workingLine = newRatings[oldRatings.index(value)]
+                        else:
+                            print("ERROR reversing field")
+                            exit()
+                    if fieldName in convertZeroThreeToZeroSix:
+                        oldRatings = [1,2,3]
+                        # newRatings = ['2','4','6']
+                        newRatings = ['1','3','5']
+                        value = int(workingLine)
+                        if value in oldRatings:
+                            workingLine = newRatings[oldRatings.index(value)]
                 resultList.append(fieldName)
                 resultList.append(workingLine)
             elif validType == "bool":
@@ -182,14 +279,14 @@ def sharedDataParse(line, fieldName, separator, currentDate, useDefaultRemoval =
                 resultList.append(fieldName)
                 resultList.append(workingLine)
             elif isNullAllowed and workingLine == "":
-                logPrin("null value written for %s on date %s" % (fieldName, currentDate))
+                # logPrin("null value written for %s on date %s" % (fieldName, currentDate))
                 resultList.append(fieldName)
-                resultList.append(NULL_VALUE)
+                resultList.append(PARSER_NULL_VALUE)
             else:
                 isParseError = True
     else:
         isParseError = True
-    if isParseError:
+    if isParseError and fieldName not in ["eveningBreathingBool", "morningBreathingBool"]:
         logPrin("parse error for " + fieldName)
         logPrin(currentDate)
         logPrin(workingLine)
@@ -218,7 +315,9 @@ def parseMultiLine(lineFormat, f, currentDate, currentLine):
                 logPrin(workingLine, end="")
                 break
             else:
-                if verbose:  logPrin("NOT FOUND itermediate")
+                if verbose:
+                    logPrin("NOT FOUND intermediate")
+                    logPrin(searchStr)
                 f.seek(oldPosition)
                 break
         workingLine = f.readline().lower()
@@ -233,6 +332,7 @@ def createTopLine(dataFormatList):
         for j in range(len(data.subDataFormats)):
             innerData = data.subDataFormats[j]
             line += innerData.finalName + ","
+    line = line[:-1]
     return line
 
 def logPrin(myStr, end='\n'):
@@ -273,6 +373,30 @@ Class implemented
 Weirdness with dictionary currently holding classes
 Better:
     Simple list of classes to search, and search string is "firstName" of class
+
+
+Converting old data to new data:
+    Easy part: multiplying hours by 60 to get minutes
+    Hard part: making grid align so I can just concat the two files
+        Hard because:
+            Without all the categories from new, there will be too few categories and they will be misaligned
+    
+    Possible solutions:
+        Modify lines When writing to file
+        Get new data format fieldnames (i.e. new topLine)
+        Use old topline to determine what columns values mean
+        Create line to be written by iterating through new line fields
+            If field is missing, write null
+    
+    Downsides:
+        Relies on newDataFormat, which may change and would be good to keep separate
+            But if doesn't change with newDataFormat, won't be able to concat
+    
+    Alternative:
+        Merely change field names
+            Or don't even have to do that
+        Read files separately in grapher, and do this work there
+        Will have to create a dataframe through more than just concatenation, but should be doable
 '''
 
 main()
