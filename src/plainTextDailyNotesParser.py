@@ -1,10 +1,11 @@
-from myNewDataFormatList import getDataFormatList
-from globalConstants import NEW_PARSER_INPUT_FILENAME, NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE
+from myNewDataFormatList import getDataFormatList, getPublicDataFormats
+from globalConstants import NEW_PARSER_INPUT_FILENAME, NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE
+from sys import argv
 import re
 
 # Date bounds for daily entry parsing
 earliestDate = "december 6, 2022"
-latestDateNotInclusive = "january 28, 2023"
+latestDateNotInclusive = "february 14, 2023"
 
 def main():
     f = open(NEW_PARSER_INPUT_FILENAME,'r')
@@ -12,7 +13,10 @@ def main():
     parsedData = []
     currentDate = ""
 
-    dataFormatList = getDataFormatList()
+    if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
+        dataFormatList = getPublicDataFormats()
+    else:
+        dataFormatList = getDataFormatList()
 
     logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDateNotInclusive))
     logPrin('\n')
@@ -133,16 +137,16 @@ def main():
         print(mySplitLine[i], end = " ")
         print(mySplitParsed[i], end=" ")
         print(i)
-    # print(parsedData[-2])
-    printIndex = 7
-    print(topLine.split(',')[printIndex])
-    print(parsedData[-2][printIndex])
-    print(parsedData[-1][printIndex])
     
     dataFieldNamesLength = len(topLine.split(','))
 
     # Write data to file
-    writeFile = open(NEW_PARSER_OUTPUT_FILENAME, 'w')
+    if len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv:
+        print("Saving to file %s" % PLAINTEXT_PUBLIC_OUTPUT_FILE)
+        writeFile = open(PLAINTEXT_PUBLIC_OUTPUT_FILE, 'w')
+    else:
+        print("Saving to file %s" % NEW_PARSER_OUTPUT_FILENAME)
+        writeFile = open(NEW_PARSER_OUTPUT_FILENAME, 'w')
     # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
     writeFile.write(topLine + '\n')
     for line in parsedData:

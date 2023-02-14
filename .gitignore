@@ -6,3 +6,5 @@ visualization
 *.swp
 graphs/
 my*
+oldDataBackups/*
+.vscode*

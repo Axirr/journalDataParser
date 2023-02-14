@@ -19,30 +19,30 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
 
     myDf[currentGraphName] = myDf[currentFieldName]
 
-    if not dataFormat is None:
-        myDf = dataCleanup(myDf, optionsDict, currentGraphName, dataFormat)
+    myDf = dataCleanup(myDf, optionsDict, currentGraphName, dataFormat)
 
     # Aggregation
     # Groupings inconsistent with each other so are alternative and will cause error if both included
     # Establish X values
-    hadDayOfWeek = False
+    hadDayOfWeekOrWeekly = False
     if not BOX_PLOT in optionsDict:
         if WEEK_FIELD in optionsDict:
-            mySeries = myDf.groupby(WEEK_FIELD)[currentFieldName].mean()
+            hadDayOfWeekOrWeekly = True
+            mySeries = myDf.groupby(WEEK_FIELD)[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
             del optionsDict[WEEK_FIELD]
         elif DAY_OF_WEEK in optionsDict:
-            mySeries = myDf.groupby(DAY_OF_WEEK)[currentFieldName].mean()
+            mySeries = myDf.groupby(DAY_OF_WEEK)[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-            hadDayOfWeek = True
+            hadDayOfWeekOrWeekly = True
             del optionsDict[DAY_OF_WEEK]
         elif MONTH_FIELD in optionsDict:
-            mySeries = myDf.groupby(MONTH_FIELD)[currentFieldName].mean()
+            mySeries = myDf.groupby(MONTH_FIELD)[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
             del optionsDict[MONTH_FIELD]
         
         if BAR_OPTION in optionsDict:
-            mySeries = myDf.groupby(optionsDict[BAR_OPTION])[currentFieldName].mean()
+            mySeries = myDf.groupby(optionsDict[BAR_OPTION])[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
 
     yRangeTuple = (None, None)
@@ -67,18 +67,18 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         return myDf
 
     # Plotting regular graph
-    if BAR_OPTION in optionsDict or hadDayOfWeek:
+    if BAR_OPTION in optionsDict or hadDayOfWeekOrWeekly:
         if BAR_OPTION in optionsDict:
             del optionsDict[BAR_OPTION]
         if not secondDF is None:
-            if hadDayOfWeek:
+            if hadDayOfWeekOrWeekly:
                 print("ERROR: Multi-graph bar plot not implemented for day of week")
-                exit()
+                # exit()
             myDf = pd.merge(myDf, secondDF, on=DATE_FIELD)
             ax = myDf.plot.bar(x=DATE_FIELD, y=[myDf.columns[1], myDf.columns[2]])
         else:
             ax = myDf.plot.bar(x=DATE_FIELD, ylim=yRangeTuple)
-        if hadDayOfWeek:
+        if hadDayOfWeekOrWeekly:
             dayNames = ["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"]
             ax.set_xticks(range(0,7))
             ax.set_xticklabels(dayNames)
@@ -99,7 +99,7 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         plt.axhline(y=myAverage, color='r', linestyle='-')
 
     # Save plot and clear plot for next ones
-    plt.savefig('graphs/' + currentGraphName + '.png')
+    plt.savefig(GRAPH_PATH_FROM_SRC + currentGraphName + '.png')
     plt.clf()
     plt.cla()
     plt.close()
@@ -222,19 +222,23 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
     return myDf
 
 
+def doubleScatterPlot(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
+    simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate, lastDate)
+
 def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False):
+    # Copy df to ensure not modified
+    myDf = originalDf.copy()
     
     # Check that options are not inconsistent and are allowed for regression
     # Raises error if problem
     options = set(xOptionsDict.keys()) | set(yOptionsDict.keys()) | set(globalOptionsDict.keys())
     checkInconsistentOptions(options)
-    slrValidateOptions(options)
+    # slrValidateOptions(options)
 
     if SHIFT in globalOptionsDict:
         print("Shift cannot be a global option or it won't do anything")
         exit()
 
-    myDf = originalDf.copy()
 
     xFieldName = xDataFormat.finalName
     yFieldName = yDataFormat.finalName
@@ -250,6 +254,17 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
 
     myDf = dataCleanup(myDf, xOptionsDict, xFieldName, xDataFormat)
     myDf = dataCleanup(myDf, yOptionsDict, yFieldName, yDataFormat)
+
+    # Should unify grouping with linear graph grouping if possible, but it's not simple
+    if WEEK_FIELD in globalOptionsDict:
+        mySeries = myDf.groupby(WEEK_FIELD)[[xFieldName, yFieldName]].mean()
+        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
+    elif MONTH_FIELD in globalOptionsDict:
+        mySeries = myDf.groupby(MONTH_FIELD)[[xFieldName, yFieldName]].mean()
+        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
+    elif DAY_OF_WEEK in globalOptionsDict:
+        mySeries = myDf.groupby(DAY_OF_WEEK)[[xFieldName, yFieldName]].mean()
+        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
     
 
     xData = myDf.iloc[:, myDf.columns.get_loc(xFieldName)].values.reshape(-1, 1)
@@ -274,7 +289,7 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
     else:
         currentGraphName = xFieldName + yFieldName + "Scatter"
     plt.title(currentGraphName)
-    plt.savefig('graphs/' + currentGraphName + '.png')
+    plt.savefig(GRAPH_PATH_FROM_SRC + currentGraphName + '.png')
     plt.clf()
     plt.cla()
     return rSquared
@@ -296,7 +311,7 @@ def histogram(df, fieldName, optionsDict, dataFormat):
     myDf = myDf[fieldName]
     myDf.plot(kind='hist')
     myDf.plot.hist()
-    plt.savefig('graphs/' + graphTitle + '.png')
+    plt.savefig(GRAPH_PATH_FROM_SRC + graphTitle + '.png')
     plt.cla()
     plt.clf()
 

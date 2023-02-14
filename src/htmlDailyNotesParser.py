@@ -1,6 +1,7 @@
-from myDataFormatList import getDataFormatList
-from globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE
+from myDataFormatList import getDataFormatList, getPublicDataFormats
+from globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, HTML_PUBLIC_OUTPUT_FILE
 import re
+from sys import argv
 
 # Date bounds for daily entry parsing
 earliestDate = "september 11, 2022"
@@ -36,7 +37,11 @@ def main():
     parsedData = []
     currentDate = ""
 
-    dataFormatList = getDataFormatList()
+    if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
+        dataFormatList = getPublicDataFormats()
+    else:
+        dataFormatList = getDataFormatList()
+    for format in dataFormatList: print(format.finalName)
 
     logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDateNotInclusive))
     logPrin('\n')
@@ -135,15 +140,20 @@ def main():
         print(mySplitParsed[i], end=" ")
         print()
     # print(parsedData[-2])
-    printIndex = 7
-    print(topLine.split(',')[printIndex])
-    print(parsedData[-2][printIndex])
-    print(parsedData[-1][printIndex])
+    # printIndex = 7
+    # print(topLine.split(',')[printIndex])
+    # print(parsedData[-2][printIndex])
+    # print(parsedData[-1][printIndex])
     
     dataFieldNamesLength = len(topLine.split(','))
 
     # Write data to file
-    writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
+    if (READ_PUBLIC_ONLY_ARG in argv):
+        print("Saving to %s" % HTML_PUBLIC_OUTPUT_FILE)
+        writeFile = open(HTML_PUBLIC_OUTPUT_FILE, 'w')
+    else:
+        print("Saving to %s" % PARSER_OUTPUT_FILENAME)
+        writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
     # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
     writeFile.write(topLine + '\n')
 
