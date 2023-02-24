@@ -1,19 +1,17 @@
-from myNewDataFormatList import getDataFormatList, getPublicDataFormats
-from globalConstants import NEW_PARSER_INPUT_FILENAME, NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE
+from .myNewDataFormatList import getDataFormatList, getPublicDataFormats
+from .globalConstants import NEW_PARSER_INPUT_FILENAME, NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
 from sys import argv
 import re
+from time import sleep
 
 # Date bounds for daily entry parsing
 earliestDate = "december 6, 2022"
-latestDateNotInclusive = "february 14, 2023"
+latestDateNotInclusive = "february 23, 2023"
 
-def main():
-    f = open(NEW_PARSER_INPUT_FILENAME,'r')
-    line = f.readline().lower()
-    parsedData = []
-    currentDate = ""
+def main(isPublic = False):
+    if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):  isPublic = True
 
-    if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
+    if (isPublic):
         dataFormatList = getPublicDataFormats()
     else:
         dataFormatList = getDataFormatList()
@@ -24,6 +22,38 @@ def main():
     # Header for CSV file
     topLine = createTopLine(dataFormatList)
 
+    parsedData = []
+    for i in range(len(PLAINTEXT_INPUT_FILES)):
+        currentFileName = PLAINTEXT_INPUT_FILES[i]
+        currentEarliestDate = EARLIEST_DATE_FOR_FILE[i]
+        print("Current file name %s" % currentFileName)
+        parsedData = parsedData + readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate)
+        parsedData[-1][-1] += '\n'
+    dataFieldNamesLength = len(topLine.split(','))
+
+    # Write data to file
+    if isPublic:
+        print("Saving to file %s" % PLAINTEXT_PUBLIC_OUTPUT_FILE)
+        writeFile = open(PLAINTEXT_PUBLIC_OUTPUT_FILE, 'w')
+    else:
+        print("Saving to file %s" % NEW_PARSER_OUTPUT_FILENAME)
+        writeFile = open(NEW_PARSER_OUTPUT_FILENAME, 'w')
+    # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
+    writeFile.write(topLine + '\n')
+    for line in parsedData:
+        lineLength = len(line)
+        # Check data in line for every heading fieldname
+        assert lineLength == dataFieldNamesLength
+        stringLine = ','.join(line)
+        writeFile.write(stringLine)
+    writeFile.close()
+
+def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate):
+    f = open(currentFileName,'r')
+    line = f.readline().lower()
+    parsedData = []
+    currentDate = ""
+
     #
     dataFieldNames = topLine.split(",")
 
@@ -31,7 +61,8 @@ def main():
     #       Since may want to exclude datas that don't match format
     while (line):
         line = line.lower()
-        if earliestDate in line:
+        # if earliestDate in line:
+        if currentEarliestDate in line:
             break
         line = f.readline()
 
@@ -96,12 +127,6 @@ def main():
                             parsedData.append(resultList)
                             while len(tabLineStacks) > 0:
                                 printStack.insert(0, [tabLineStacks.pop(), nonFieldLinesForTabLine.pop()])
-                            print()
-                            print()
-                            print("DAY START %s" % currentDate)
-                            for printLine in printStack:
-                                print(printLine)
-                                print()
                         currentDate = workingLine
                         dataDict = {}
                         for dataname in dataFieldNames:
@@ -131,32 +156,9 @@ def main():
         for key in dataDict:
             resultList.append(dataDict[key])
         parsedData.append(resultList)
-    mySplitLine = topLine.split(',')
-    mySplitParsed = parsedData[-2]
-    for i in range(len(mySplitLine)):
-        print(mySplitLine[i], end = " ")
-        print(mySplitParsed[i], end=" ")
-        print(i)
-    
-    dataFieldNamesLength = len(topLine.split(','))
 
-    # Write data to file
-    if len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv:
-        print("Saving to file %s" % PLAINTEXT_PUBLIC_OUTPUT_FILE)
-        writeFile = open(PLAINTEXT_PUBLIC_OUTPUT_FILE, 'w')
-    else:
-        print("Saving to file %s" % NEW_PARSER_OUTPUT_FILENAME)
-        writeFile = open(NEW_PARSER_OUTPUT_FILENAME, 'w')
-    # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
-    writeFile.write(topLine + '\n')
-    for line in parsedData:
-        lineLength = len(line)
-        # Check data in line for every heading fieldname
-        assert lineLength == dataFieldNamesLength
-        stringLine = ','.join(line)
-        writeFile.write(stringLine)
     f.close()
-    writeFile.close()
+    return parsedData
 
 def isField(line, dataFormatList, currentDate, f):
     isField = False

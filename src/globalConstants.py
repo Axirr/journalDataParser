@@ -9,9 +9,11 @@ AVG_LINE = "AvgLine"
 ROLLING_AVERAGE = "RollingAverage"
 Y_MAX = "YMax"
 Y_MIN = "YMin"
+
 BAR_OPTION = "Bar"
 BOX_PLOT = "BoxPlot"
 MULTI_PLOT = "MultiPlot"
+
 FIRST_DATE = "FirstDate"
 LAST_DATE = "LastDate"
 GRAPH_TYPES = [BAR_OPTION, BOX_PLOT]
@@ -25,12 +27,18 @@ SHIFT = "Shift"
 NORMALIZE = "Normalize"
 
 PARSER_NULL_VALUE = "null"
-PARSER_OUTPUT_FILENAME = "../outputData/htmlOutput.csv"
-NEW_PARSER_OUTPUT_FILENAME = "../outputData/plaintextOutput.csv"
+PARSER_OUTPUT_FILENAME = "./outputData/htmlOutput.csv"
+NEW_PARSER_OUTPUT_FILENAME = "./outputData/plaintextOutput.csv"
 PARSER_INPUT_FILENAME = "../../../daily.nnex"
-NEW_PARSER_INPUT_FILENAME = "../../../dailyDataDec2022.txt"
-PLAINTEXT_PUBLIC_OUTPUT_FILE = "../outputData/publicOutput.csv"
-HTML_PUBLIC_OUTPUT_FILE = "../outputData/publicHtmlOutput.csv"
+
+NEW_PARSER_INPUT_FILENAME =  "../../../../../dailyData/dailyDataDec2022Jan2023.txt"
+NEW_PARSER_INPUT_FILENAME2 = "../../../../../dailyData/dailyDataFeb2023.txt"
+PLAINTEXT_INPUT_FILES = [NEW_PARSER_INPUT_FILENAME, NEW_PARSER_INPUT_FILENAME2]
+# PLAINTEXT_INPUT_FILES = [NEW_PARSER_INPUT_FILENAME2]
+EARLIEST_DATE_FOR_FILE = ["december 6, 2022", "february 1, 2023"]
+
+PLAINTEXT_PUBLIC_OUTPUT_FILE = "./outputData/publicOutput.csv"
+HTML_PUBLIC_OUTPUT_FILE = "./outputData/publicHtmlOutput.csv"
 GRAPH_PATH_FROM_SRC = "../graphs/"
 
 READ_PUBLIC_ONLY_ARG = "public"

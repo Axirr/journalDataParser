@@ -1,12 +1,15 @@
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from myDataFormatList import *
-from globalConstants import *
+from .myNewDataFormatList import *
+from .globalConstants import *
 
 
-def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, optionsDict, dataFormat, secondDF = None, dfToPlot=None):
+def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, optionsDict, dataFormat, secondDF = None, dfToPlot=None, saveLocation=None, saveName=None):
     myDf = originalDf.copy(deep=True)
+    print("Deleting keys on original optionals dict to ensure processing is bad, should remove or do on copy")
 
     checkInconsistentOptions(optionsDict)
 
@@ -24,17 +27,18 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
     # Aggregation
     # Groupings inconsistent with each other so are alternative and will cause error if both included
     # Establish X values
-    hadDayOfWeekOrWeekly = False
+    hadDayOfWeek = False
+    hadWeekly = False
     if not BOX_PLOT in optionsDict:
         if WEEK_FIELD in optionsDict:
-            hadDayOfWeekOrWeekly = True
+            hadWeekly = True
             mySeries = myDf.groupby(WEEK_FIELD)[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
             del optionsDict[WEEK_FIELD]
         elif DAY_OF_WEEK in optionsDict:
             mySeries = myDf.groupby(DAY_OF_WEEK)[currentGraphName].mean()
             myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-            hadDayOfWeekOrWeekly = True
+            hadDayOfWeek = True
             del optionsDict[DAY_OF_WEEK]
         elif MONTH_FIELD in optionsDict:
             mySeries = myDf.groupby(MONTH_FIELD)[currentGraphName].mean()
@@ -67,18 +71,15 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         return myDf
 
     # Plotting regular graph
-    if BAR_OPTION in optionsDict or hadDayOfWeekOrWeekly:
-        if BAR_OPTION in optionsDict:
-            del optionsDict[BAR_OPTION]
+    if BAR_OPTION in optionsDict or hadDayOfWeek or hadWeekly:
+        # if BAR_OPTION in optionsDict:
+        #     del optionsDict[BAR_OPTION]
         if not secondDF is None:
-            if hadDayOfWeekOrWeekly:
-                print("ERROR: Multi-graph bar plot not implemented for day of week")
-                # exit()
             myDf = pd.merge(myDf, secondDF, on=DATE_FIELD)
             ax = myDf.plot.bar(x=DATE_FIELD, y=[myDf.columns[1], myDf.columns[2]])
         else:
             ax = myDf.plot.bar(x=DATE_FIELD, ylim=yRangeTuple)
-        if hadDayOfWeekOrWeekly:
+        if hadDayOfWeek:
             dayNames = ["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"]
             ax.set_xticks(range(0,7))
             ax.set_xticklabels(dayNames)
@@ -99,7 +100,22 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         plt.axhline(y=myAverage, color='r', linestyle='-')
 
     # Save plot and clear plot for next ones
-    plt.savefig(GRAPH_PATH_FROM_SRC + currentGraphName + '.png')
+    fileSaveName = currentGraphName + '.png'
+    if saveName != None:
+        allowedNames = [item.finalName for item in getPublicDataFormats()]
+        if saveName not in allowedNames:
+            print("INVALID SAVE NAME")
+            print("The name is %s" % saveName)
+            return
+        fileSaveName = saveName
+    print("File savename is %s" % fileSaveName)
+    if saveLocation == None:
+        print("Saving to globalConstants save location %s" % GRAPH_PATH_FROM_SRC)
+        plt.savefig(GRAPH_PATH_FROM_SRC + fileSaveName)
+    else:
+        print("Saving to specified saveLocation %s" % saveLocation)
+        plt.savefig(saveLocation + fileSaveName)
+
     plt.clf()
     plt.cla()
     plt.close()
@@ -137,7 +153,7 @@ def checkInconsistentOptions(optionsDict):
         [groupOptions, groupOptions],
         [nanOptions, nanOptions],
         [[BOX_PLOT], [AVG_LINE, MULTI_PLOT]],
-        [GRAPH_TYPES, groupOptions],
+        # [GRAPH_TYPES, groupOptions],
     ]
 
     for pair in inconsistentPairs:

@@ -1,12 +1,10 @@
 import pandas as pd
-from globalConstants import *
-from myGraphCalls import setDates
+from .globalConstants import *
+from .myGraphCalls import setDates
 from sqlalchemy import *
 import os
 from sqlalchemy.orm import Session
-from DailyData import Base, Daily_Data
-
-
+from .DailyData import Base, Daily_Data
 
     
 
