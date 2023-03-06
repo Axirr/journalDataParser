@@ -32,10 +32,17 @@ NEW_PARSER_OUTPUT_FILENAME = "./outputData/plaintextOutput.csv"
 PARSER_INPUT_FILENAME = "../../../daily.nnex"
 
 NEW_PARSER_INPUT_FILENAME =  "../../../../../dailyData/dailyDataDec2022Jan2023.txt"
-NEW_PARSER_INPUT_FILENAME2 = "../../../../../dailyData/dailyDataFeb2023.txt"
-PLAINTEXT_INPUT_FILES = [NEW_PARSER_INPUT_FILENAME, NEW_PARSER_INPUT_FILENAME2]
+PLAINTEXT_INPUT_FILES = [
+    NEW_PARSER_INPUT_FILENAME,
+    "../../../../../dailyData/dailyDataFeb2023.txt",
+    "../../../../../dailyData/dailyDataMarch2023.txt",
+    ]
 # PLAINTEXT_INPUT_FILES = [NEW_PARSER_INPUT_FILENAME2]
-EARLIEST_DATE_FOR_FILE = ["december 6, 2022", "february 1, 2023"]
+EARLIEST_DATE_FOR_FILE = [
+    "december 6, 2022",
+    "february 1, 2023",
+    "march 1, 2023",
+    ]
 
 PLAINTEXT_PUBLIC_OUTPUT_FILE = "./outputData/publicOutput.csv"
 HTML_PUBLIC_OUTPUT_FILE = "./outputData/publicHtmlOutput.csv"
@@ -43,3 +50,5 @@ GRAPH_PATH_FROM_SRC = "../graphs/"
 
 READ_PUBLIC_ONLY_ARG = "public"
 USE_SQL_AS_DATA_SOURCE = "sqlSource"
+
+ADD_SQL_ARG = "add"

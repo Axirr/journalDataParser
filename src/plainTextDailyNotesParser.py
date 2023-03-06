@@ -1,23 +1,28 @@
 from .myNewDataFormatList import getDataFormatList, getPublicDataFormats
-from .globalConstants import NEW_PARSER_INPUT_FILENAME, NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
+from .globalConstants import NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
 from sys import argv
 import re
 from time import sleep
-
-# Date bounds for daily entry parsing
-earliestDate = "december 6, 2022"
-latestDateNotInclusive = "february 23, 2023"
+from datetime import date
 
 def main(isPublic = False):
     if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):  isPublic = True
+    print(argv)
 
     if (isPublic):
+        print("Reading public data types ONLY")
         dataFormatList = getPublicDataFormats()
     else:
+        print("Reading all data types, not just public")
         dataFormatList = getDataFormatList()
+    sleep(2)
+    
+    todayDate = date.today()
+    automaticEndDate = todayDate.strftime("%B %d, %Y").replace(" 0", " ").lower()
+    print("Reading up to (but not including) today's date (%s)" %automaticEndDate)
+    print()
+    sleep(2)
 
-    logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDateNotInclusive))
-    logPrin('\n')
 
     # Header for CSV file
     topLine = createTopLine(dataFormatList)
@@ -26,8 +31,13 @@ def main(isPublic = False):
     for i in range(len(PLAINTEXT_INPUT_FILES)):
         currentFileName = PLAINTEXT_INPUT_FILES[i]
         currentEarliestDate = EARLIEST_DATE_FOR_FILE[i]
-        print("Current file name %s" % currentFileName)
-        parsedData = parsedData + readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate)
+        firstNotIncludedDate = automaticEndDate
+        if (i + 1 < len(PLAINTEXT_INPUT_FILES)):  firstNotIncludedDate = EARLIEST_DATE_FOR_FILE[i + 1]
+        print("Current file name %s from start date %s to end date (non inclusive) %s" % (currentFileName, currentEarliestDate, firstNotIncludedDate))
+        resultParsedData = readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate, firstNotIncludedDate)
+        print("Last line of output", end="")
+        print(resultParsedData[-1])
+        parsedData = parsedData + resultParsedData
         parsedData[-1][-1] += '\n'
     dataFieldNamesLength = len(topLine.split(','))
 
@@ -48,21 +58,24 @@ def main(isPublic = False):
         writeFile.write(stringLine)
     writeFile.close()
 
-def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate):
-    f = open(currentFileName,'r')
+def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate, firstNotIncludedDate):
+    try:
+        f = open(currentFileName,'r')
+    except OSError:
+        print("Could not open file %s" % currentFileName)
+        raise FileNotFoundError()
+    currentDate = ""
     line = f.readline().lower()
     parsedData = []
-    currentDate = ""
 
-    #
     dataFieldNames = topLine.split(",")
 
     # Traverse file until earliest data found
     #       Since may want to exclude datas that don't match format
     while (line):
         line = line.lower()
-        # if earliestDate in line:
         if currentEarliestDate in line:
+            print("earliest data %s found!" % currentEarliestDate)
             break
         line = f.readline()
 
@@ -100,7 +113,7 @@ def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate):
 
         tabLevel = count
 
-        if latestDateNotInclusive in line:
+        if firstNotIncludedDate in line:
             break
         
         # Check for preliminary match for date using lowercase months

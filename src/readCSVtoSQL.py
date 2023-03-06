@@ -1,16 +1,24 @@
 import pandas as pd
 from .globalConstants import *
 from .myGraphCalls import setDates
-from sqlalchemy import *
+import sqlalchemy as sqla
 import os
 from sqlalchemy.orm import Session
 from .DailyData import Base, Daily_Data
+from sys import argv
+from time import sleep
 
     
 
-def readCSVtoSQLMain():
+def readCSVtoSQLMain(addOnly):
     oldDf = pd.read_csv(HTML_PUBLIC_OUTPUT_FILE, parse_dates=True)
     newDf = pd.read_csv(PLAINTEXT_PUBLIC_OUTPUT_FILE, parse_dates=True)
+
+    if addOnly:
+        print("Only adding data that doesn't already exist")
+    else:
+        print("Trying to insert all data")
+    sleep(1)
 
 
     pd.set_option('display.max_rows', None)
@@ -23,12 +31,18 @@ def readCSVtoSQLMain():
     if (url is None):
         print("Database info not set")
         exit()
-    engine = create_engine(url, echo = True)
+    engine = sqla.create_engine(url, echo = True)
     Base.metadata.create_all(engine)
 
     with Session(engine) as session:
         for _, item in df.iterrows():
             myDate = item.date.to_pydatetime().date()
+            if addOnly:
+                myDateString = myDate.strftime("%Y-%m-%d")
+                dateExists = session.query(Daily_Data.date).filter_by(date=myDateString).first() is not None
+                if dateExists:
+                    print("%s already exists" % myDateString)
+                    continue
 
             myProgrammingMinutes = item.programmingMinutes
             myTVminutes = item.TVminutes
@@ -54,4 +68,7 @@ def readCSVtoSQLMain():
     return
 
 if __name__ == "__main__":
-    readCSVtoSQLMain()
+    addOnly = True
+    if len(argv) > 1 and UPDATE_ALL_SQL in argv:
+        addOnly = False
+    readCSVtoSQLMain(addOnly)
