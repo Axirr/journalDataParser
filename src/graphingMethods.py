@@ -111,11 +111,12 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
             return
         fileSaveName = saveName
     print("File savename is %s" % fileSaveName)
+
+    saveLocation = os.environ('GRAPH_SAVE_LOCATION')
     if saveLocation == None:
-        print("Saving to globalConstants save location %s" % GRAPH_PATH_FROM_SRC)
-        plt.savefig(GRAPH_PATH_FROM_SRC + fileSaveName)
+        print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
     else:
-        print("Saving to specified saveLocation %s" % saveLocation)
+        print("Saving to %s" % saveLocation)
         plt.savefig(saveLocation + fileSaveName)
 
     plt.clf()
