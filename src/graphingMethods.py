@@ -5,6 +5,8 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from .myNewDataFormatList import *
 from .globalConstants import *
+from copy import copy
+import os
 
 
 def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, optionsDict, dataFormat, secondDF = None, dfToPlot=None, saveLocation=None, saveName=None):
@@ -126,6 +128,100 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         print(optionsDict)
         # exit()
 
+def graphMultiple(fieldNames, originalOptionsDict, originalDf, filename):
+    myDf = originalDf.copy()
+    myDataFormatList = getDataFormatList()
+    # multiPlotOptionsDict = copy(originalOptionsDict)
+    # multiPlotOptionsDict[MULTI_PLOT] = True
+
+    for format in myDataFormatList:
+        if format.finalName == fieldNames[0]:
+            currentDataFormat = format
+            break
+    currentFieldName = fieldNames[0]
+    myDf = dataCleanup(myDf, originalOptionsDict, currentFieldName, currentDataFormat)
+    for currentFieldName in fieldNames:
+        for format in myDataFormatList:
+            if format.finalName == currentFieldName:
+                currentDataFormat = format
+                break
+        # newDf = lineGraphWithOptions(currentFieldName, currentFieldName, myDf, multiPlotOptionsDict, currentDataFormat)
+        myDf = dataCleanup(myDf, originalOptionsDict, currentFieldName, currentDataFormat)
+    myDf = dropNonNameOrGroupColumns(fieldNames, originalOptionsDict, myDf)
+    myDf = groupAllByMaintainName(fieldNames, originalOptionsDict, myDf)
+    graphAllColumns(originalOptionsDict, myDf, filename)
+
+def dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf):
+    workingFieldNames = copy(fieldNames)
+    workingFieldNames.append(getGroupColumnName(optionsDict))
+    columnsToDrop = [col for col in myDf.columns if col not in workingFieldNames]
+    # print("Columns to drop")
+    # print(columnsToDrop)
+    myDf = myDf.drop(columnsToDrop, axis=1)
+    # for col in myDf.columns:
+    #     if col not in workingFieldNames:
+    #         myDf.drop(col)
+    return myDf
+
+def groupAllByMaintainName(fieldNames, optionsDict, inputDf):
+    groupField = getGroupColumnName(optionsDict)
+    seriesArray = []
+    for currentGraphName in fieldNames:
+        mySeries = inputDf.groupby(groupField)[currentGraphName].mean()
+        seriesArray.append(mySeries)
+    constructedDf = pd.concat(seriesArray, axis=1)
+    return constructedDf
+
+def getGroupColumnName(optionsDict):
+    groupField = DATE_FIELD
+    if (WEEK_FIELD in optionsDict):
+        groupField = WEEK_FIELD
+    elif (MONTH_FIELD in optionsDict):
+        groupField = MONTH_FIELD
+    return groupField
+
+
+def graphAllColumns(optionsDict, myDf, filename):
+    yRangeTuple = (None, None)
+
+    if Y_MAX in optionsDict:
+        yRangeTuple = (yRangeTuple[0], optionsDict[Y_MAX])
+        del optionsDict[Y_MAX]
+    
+    if Y_MIN in optionsDict:
+        yRangeTuple = (optionsDict[Y_MIN], yRangeTuple[1])
+        del optionsDict[Y_MIN]
+
+    # IMPLEMENT BAR OPTION
+
+    # IMPLEMENT BOX OPTION
+
+    ax = myDf.plot(y=myDf.columns, ylim=yRangeTuple, use_index=True)
+
+    # IMPLEMENT AVG LINE? DOES IT MAKE SENSE FOR MULTIPLE DATA
+
+    fileSaveName = filename
+
+    if filename != None:
+        allowedNames = [item.finalName for item in getPublicDataFormats()]
+        allowedNames.append("multigraph.png")
+        if filename not in allowedNames:
+            print("INVALID SAVE NAME")
+            print("The name is %s" % filename)
+
+        print("File savename is %s" % fileSaveName)
+        saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
+        if saveLocation == None:
+            # print("Saving to globalConstants save location %s" % GRAPH_PATH_FROM_SRC)
+            print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
+        else:
+            print("Saving to specified saveLocation %s" % saveLocation)
+            plt.savefig(saveLocation + fileSaveName)
+
+    plt.clf()
+    plt.cla()
+    plt.close()
+
 def createTitleFromOptions(optionsDict, originalName):
     useValueKeys = [BAR_OPTION, BOX_PLOT, FIRST_DATE, LAST_DATE]
     useKeyOnly = [NULL_MEANS_MISSING, WEEK_FIELD, MONTH_FIELD, DAY_OF_WEEK, NO_WEEKEND, NORMALIZE]
@@ -188,50 +284,38 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
     if NULL_MEANS_MISSING in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_MEANS_MISSING):
         # myDf = myDf[myDf[fieldName].notnull()]
         myDf.drop(myDf[myDf[fieldName].isnull()].index, inplace=True)
-        try:
-            del optionsDict[NULL_MEANS_MISSING]
-        except:  pass
     elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
         myDf[[fieldName]] = myDf[[fieldName]].fillna(0)
-        try:
-            del optionsDict[NULL_IS_ZERO]
-        except:  pass
     else:
         print("Unrecognized nullType")
         exit()
 
     if FIRST_DATE in optionsDict:
         myDf.drop(myDf[myDf[DATE_FIELD] < optionsDict[FIRST_DATE]].index, inplace=True)
-        del optionsDict[FIRST_DATE]
     else:
         firstDate = myDf[myDf[fieldName].notnull()].iloc[0][DATE_FIELD]
         myDf.drop(myDf[myDf[DATE_FIELD] < firstDate].index, inplace=True)
 
     if LAST_DATE in optionsDict:
         myDf.drop(myDf[myDf[DATE_FIELD] > optionsDict[LAST_DATE]].index, inplace=True)
-        del optionsDict[LAST_DATE]
 
     if NO_WEEKEND in optionsDict:
         myDf.drop(myDf[myDf[DAY_OF_WEEK] > 5].index, inplace=True)
-        del optionsDict[NO_WEEKEND]
 
 
     # Data still around is what we want (e.g. no weekend) now modify as required with shift, normalize, average, etc.
     if SHIFT in optionsDict:
         # myDf[fieldName] = myDf[fieldName].shift(optionsDict[SHIFT])
         myDf[fieldName] = myDf[fieldName].shift(optionsDict[SHIFT])
-        del optionsDict[SHIFT]
     
     if NORMALIZE in optionsDict:
         myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/myDf[fieldName].std()
-        del optionsDict[NORMALIZE]
 
     if ROLLING_AVERAGE in optionsDict:
         if optionsDict[ROLLING_AVERAGE] not in [0, 1]:
             myDf[fieldName] = myDf.rolling(window=optionsDict[ROLLING_AVERAGE])[fieldName].mean()
         else:
             print("Not using invalid rolling average value of %d." % optionsDict[ROLLING_AVERAGE])
-        del optionsDict[ROLLING_AVERAGE]
 
     myDf = myDf[myDf[fieldName].notna()]
     
