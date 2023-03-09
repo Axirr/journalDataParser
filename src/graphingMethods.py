@@ -102,8 +102,8 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         plt.axhline(y=myAverage, color='r', linestyle='-')
 
     # Save plot and clear plot for next ones
-    fileSaveName = currentGraphName + '.png'
-    if saveName != None:
+    fileSaveName = currentFieldName + '.png'
+    if fileSaveName != None:
         allowedNames = [item.finalName for item in getPublicDataFormats()]
         if saveName not in allowedNames:
             print("INVALID SAVE NAME")
@@ -112,7 +112,7 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         fileSaveName = saveName
     print("File savename is %s" % fileSaveName)
 
-    saveLocation = os.environ('GRAPH_SAVE_LOCATION')
+    saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
     if saveLocation == None:
         print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
     else:
