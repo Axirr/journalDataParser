@@ -73,7 +73,8 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
         return myDf
 
     # Plotting regular graph
-    if BAR_OPTION in optionsDict or hadDayOfWeek or hadWeekly:
+    # if BAR_OPTION in optionsDict or hadDayOfWeek or hadWeekly:
+    if BAR_OPTION in optionsDict:
         # if BAR_OPTION in optionsDict:
         #     del optionsDict[BAR_OPTION]
         if not secondDF is None:
@@ -88,7 +89,7 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
     elif BOX_PLOT in optionsDict:
         myDf = myDf.boxplot(column=[currentFieldName], by=[optionsDict[BOX_PLOT]])
         ax = myDf.plot()
-        del optionsDict[BOX_PLOT]
+        # del optionsDict[BOX_PLOT]
     else:
         myDf = myDf[[DATE_FIELD, currentGraphName]]
         ax = myDf.plot(x=DATE_FIELD, ylim=yRangeTuple)
@@ -123,12 +124,6 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
     plt.cla()
     plt.close()
 
-    # Check if options that weren't dealt with
-    if len(optionsDict) > 0:
-        print("UNPROCESSED KEYS REMAIN but still running")
-        print(optionsDict)
-        # exit()
-
 def graphMultiple(fieldNames, originalOptionsDict, originalDf, filename):
     myDf = originalDf.copy()
     myDataFormatList = getDataFormatList()
@@ -149,7 +144,8 @@ def graphMultiple(fieldNames, originalOptionsDict, originalDf, filename):
         # newDf = lineGraphWithOptions(currentFieldName, currentFieldName, myDf, multiPlotOptionsDict, currentDataFormat)
         myDf = dataCleanup(myDf, originalOptionsDict, currentFieldName, currentDataFormat)
     myDf = dropNonNameOrGroupColumns(fieldNames, originalOptionsDict, myDf)
-    myDf = groupAllByMaintainName(fieldNames, originalOptionsDict, myDf)
+    if (not BOX_PLOT in originalOptionsDict):
+        myDf = groupAllByMaintainName(fieldNames, originalOptionsDict, myDf)
     graphAllColumns(originalOptionsDict, myDf, filename)
 
 def dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf):
@@ -162,6 +158,7 @@ def dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf):
     # for col in myDf.columns:
     #     if col not in workingFieldNames:
     #         myDf.drop(col)
+    print(myDf.columns)
     return myDf
 
 def groupAllByMaintainName(fieldNames, optionsDict, inputDf):
@@ -179,6 +176,10 @@ def getGroupColumnName(optionsDict):
         groupField = WEEK_FIELD
     elif (MONTH_FIELD in optionsDict):
         groupField = MONTH_FIELD
+    elif (DAY_OF_WEEK in optionsDict):
+        groupField = DAY_OF_WEEK
+    else:
+        print("WARNING, NO VALID TIME GROUP FOUND")
     return groupField
 
 
@@ -193,11 +194,15 @@ def graphAllColumns(optionsDict, myDf, filename):
         yRangeTuple = (optionsDict[Y_MIN], yRangeTuple[1])
         del optionsDict[Y_MIN]
 
-    # IMPLEMENT BAR OPTION
-
-    # IMPLEMENT BOX OPTION
-
-    ax = myDf.plot(y=myDf.columns, ylim=yRangeTuple, use_index=True)
+    if (BAR_OPTION in optionsDict):
+        # IMPLEMENT BAR OPTION
+        ax = myDf.plot.bar(y=myDf.columns, use_index=True)
+    elif (BOX_PLOT in optionsDict):
+        # IMPLEMENT BOX OPTION
+        myDf = myDf.boxplot(column=myDf.columns[0], by=[optionsDict[BOX_PLOT]])
+        ax = myDf.plot()
+    else:
+        ax = myDf.plot(y=myDf.columns, ylim=yRangeTuple, use_index=True)
 
     # IMPLEMENT AVG LINE? DOES IT MAKE SENSE FOR MULTIPLE DATA
 
