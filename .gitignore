@@ -8,3 +8,4 @@ graphs/
 my*
 oldDataBackups/*
 .vscode*
+privateSrc*

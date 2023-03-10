@@ -46,7 +46,8 @@ EARLIEST_DATE_FOR_FILE = [
 
 PLAINTEXT_PUBLIC_OUTPUT_FILE = "./outputData/publicOutput.csv"
 HTML_PUBLIC_OUTPUT_FILE = "./outputData/publicHtmlOutput.csv"
-GRAPH_PATH_FROM_SRC = "../graphs/"
+#GRAPH_PATH_FROM_SRC = "../graphs/"
+GRAPH_PATH_ENV_VARIABLE = 'GRAPH_SAVE_LOCATION'
 
 READ_PUBLIC_ONLY_ARG = "public"
 USE_SQL_AS_DATA_SOURCE = "sqlSource"

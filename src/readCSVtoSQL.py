@@ -1,10 +1,10 @@
 import pandas as pd
-from .globalConstants import *
-from .myGraphCalls import setDates
+from src.globalConstants import *
+from privateSrc.myGraphCalls import setDates
 import sqlalchemy as sqla
 import os
 from sqlalchemy.orm import Session
-from .DailyData import Base, Daily_Data
+from src.DailyData import Base, Daily_Data
 from sys import argv
 from time import sleep
 
@@ -68,7 +68,8 @@ def readCSVtoSQLMain(addOnly):
     return
 
 if __name__ == "__main__":
-    addOnly = True
-    if len(argv) > 1 and UPDATE_ALL_SQL in argv:
-        addOnly = False
-    readCSVtoSQLMain(addOnly)
+    print("Module file. Should not be run directly.")
+    # addOnly = True
+    # if len(argv) > 1 and UPDATE_ALL_SQL in argv:
+    #     addOnly = False
+    # readCSVtoSQLMain(addOnly)

@@ -3,8 +3,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from .myNewDataFormatList import *
-from .globalConstants import *
+from privateSrc.myNewDataFormatList import *
+from src.globalConstants import *
 from copy import copy
 import os
 
@@ -390,7 +390,11 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
     else:
         currentGraphName = xFieldName + yFieldName + "Scatter"
     plt.title(currentGraphName)
-    plt.savefig(GRAPH_PATH_FROM_SRC + currentGraphName + '.png')
+    graphPath = os.environ.get(GRAPH_PATH_ENV_VARIABLE)
+    if graphPath == None:
+        print("ENVIRONMENTAL VARIABLE %s NOT SET. ABORTING SAVE." % GRAPH_PATH_ENV_VARIABLE)
+    else:
+        plt.savefig(graphPath + currentGraphName + '.png')
     plt.clf()
     plt.cla()
     return rSquared

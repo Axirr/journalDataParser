@@ -1,5 +1,5 @@
-from .myNewDataFormatList import getDataFormatList, getPublicDataFormats
-from .globalConstants import NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
+from privateSrc.myNewDataFormatList import getDataFormatList, getPublicDataFormats
+from src.globalConstants import NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
 from sys import argv
 import re
 from time import sleep
@@ -316,4 +316,5 @@ def logPrin(myStr, end='\n'):
     print(myStr, end)
 
 if __name__ == "__main__":
-    main()
+    print("Module file. Should not be run directly.")
+    # main()

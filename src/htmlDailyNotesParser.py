@@ -1,5 +1,5 @@
-from myDataFormatList import getDataFormatList, getPublicDataFormats
-from globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, HTML_PUBLIC_OUTPUT_FILE
+from privateSrc.myDataFormatList import getDataFormatList, getPublicDataFormats
+from src.globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, HTML_PUBLIC_OUTPUT_FILE
 import re
 from sys import argv
 
@@ -409,4 +409,6 @@ Converting old data to new data:
         Will have to create a dataframe through more than just concatenation, but should be doable
 '''
 
-main()
+if __name__ == "__main__":
+    print("Module file. Should not be run directly.")
+    # main()
