@@ -9,10 +9,14 @@ AVG_LINE = "AvgLine"
 ROLLING_AVERAGE = "RollingAverage"
 Y_MAX = "YMax"
 Y_MIN = "YMin"
+REMOVE_LEGEND = "NoLegend"
+FROM_FIRST_VALID_DATE = "FirstValidDate"
 
 BAR_OPTION = "Bar"
 BOX_PLOT = "BoxPlot"
 MULTI_PLOT = "MultiPlot"
+HISTOGRAM = "Histogram"
+SIMPLE_LINEAR_REGRESSION = "SimpleLinearRegression"
 
 FIRST_DATE = "FirstDate"
 LAST_DATE = "LastDate"
@@ -29,7 +33,7 @@ NORMALIZE = "Normalize"
 PARSER_NULL_VALUE = "null"
 PARSER_OUTPUT_FILENAME = "./outputData/htmlOutput.csv"
 NEW_PARSER_OUTPUT_FILENAME = "./outputData/plaintextOutput.csv"
-PARSER_INPUT_FILENAME = "../../../daily.nnex"
+PARSER_INPUT_FILENAME = "../../../../../daily.nnex"
 
 NEW_PARSER_INPUT_FILENAME =  "../../../../../dailyData/dailyDataDec2022Jan2023.txt"
 PLAINTEXT_INPUT_FILES = [
@@ -53,3 +57,8 @@ READ_PUBLIC_ONLY_ARG = "public"
 USE_SQL_AS_DATA_SOURCE = "sqlSource"
 
 ADD_SQL_ARG = "add"
+REPLACE_DATA_SQL_ARG = "add"
+PRIVATE_DATABASE_ARG = "private"
+
+DEFAULT_SQL_DATABASE_ENV_VARIABLE = 'SQL_ALCHEMY_DB_INFO'
+PRIVATE_SQL_DATABASE_ENV_VARIABLE = 'PRIVATE_SQL_ALCHEMY_DB_INFO'

@@ -317,4 +317,4 @@ def logPrin(myStr, end='\n'):
 
 if __name__ == "__main__":
     print("Module file. Should not be run directly.")
-    # main()
+    main()

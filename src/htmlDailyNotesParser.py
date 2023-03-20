@@ -31,13 +31,14 @@ convertZeroThreeToZeroSix = {
     'productivityRating': 'productivityRating'
 }
 
-def main():
+def main(isPublic = False):
     f = open(PARSER_INPUT_FILENAME,'r')
     line = f.readline().lower()
     parsedData = []
     currentDate = ""
 
-    if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
+    if (isPublic):
+    # if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
         dataFormatList = getPublicDataFormats()
     else:
         dataFormatList = getDataFormatList()
@@ -411,4 +412,4 @@ Converting old data to new data:
 
 if __name__ == "__main__":
     print("Module file. Should not be run directly.")
-    # main()
+    main()

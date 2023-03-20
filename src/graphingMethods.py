@@ -105,11 +105,11 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
     # Save plot and clear plot for next ones
     fileSaveName = currentFieldName + '.png'
     if fileSaveName != None:
-        allowedNames = [item.finalName for item in getPublicDataFormats()]
-        if saveName not in allowedNames:
-            print("INVALID SAVE NAME")
-            print("The name is %s" % saveName)
-            return
+        # allowedNames = [item.finalName for item in getPublicDataFormats()]
+        # if saveName not in allowedNames:
+        #     print("INVALID SAVE NAME")
+        #     print("The name is %s" % saveName)
+        #     return
         fileSaveName = saveName
     print("File savename is %s" % fileSaveName)
 
@@ -124,29 +124,34 @@ def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, options
     plt.cla()
     plt.close()
 
-def graphMultiple(fieldNames, originalOptionsDict, originalDf, filename):
+def graphMultiple(fieldNames, optionsDict, originalDf, filename):
+    checkInconsistentOptions(optionsDict)
+
     myDf = originalDf.copy()
     myDataFormatList = getDataFormatList()
-    # multiPlotOptionsDict = copy(originalOptionsDict)
-    # multiPlotOptionsDict[MULTI_PLOT] = True
 
     for format in myDataFormatList:
         if format.finalName == fieldNames[0]:
             currentDataFormat = format
             break
     currentFieldName = fieldNames[0]
-    myDf = dataCleanup(myDf, originalOptionsDict, currentFieldName, currentDataFormat)
+    myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat)
+    # myDf = globalDataCleanup(myDf, optionsDict, fieldNames)
     for currentFieldName in fieldNames:
         for format in myDataFormatList:
             if format.finalName == currentFieldName:
                 currentDataFormat = format
                 break
         # newDf = lineGraphWithOptions(currentFieldName, currentFieldName, myDf, multiPlotOptionsDict, currentDataFormat)
-        myDf = dataCleanup(myDf, originalOptionsDict, currentFieldName, currentDataFormat)
-    myDf = dropNonNameOrGroupColumns(fieldNames, originalOptionsDict, myDf)
-    if (not BOX_PLOT in originalOptionsDict):
-        myDf = groupAllByMaintainName(fieldNames, originalOptionsDict, myDf)
-    graphAllColumns(originalOptionsDict, myDf, filename)
+        myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat)
+    myDf = dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf)
+    if (not BOX_PLOT in optionsDict and not HISTOGRAM in optionsDict):
+        myDf = groupAllByMaintainName(fieldNames, optionsDict, myDf)
+    if (not HISTOGRAM in optionsDict):
+        graphAllColumns(optionsDict, myDf, filename)
+    else:
+        print("graphing histogram")
+        histogram(myDf, fieldNames[0], optionsDict, filename)
 
 def dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf):
     workingFieldNames = copy(fieldNames)
@@ -203,17 +208,20 @@ def graphAllColumns(optionsDict, myDf, filename):
         ax = myDf.plot()
     else:
         ax = myDf.plot(y=myDf.columns, ylim=yRangeTuple, use_index=True)
+    
+    if (REMOVE_LEGEND in optionsDict):
+        ax.get_legend().remove()
 
     # IMPLEMENT AVG LINE? DOES IT MAKE SENSE FOR MULTIPLE DATA
 
     fileSaveName = filename
 
     if filename != None:
-        allowedNames = [item.finalName for item in getPublicDataFormats()]
-        allowedNames.append("multigraph.png")
-        if filename not in allowedNames:
-            print("INVALID SAVE NAME")
-            print("The name is %s" % filename)
+        # allowedNames = [item.finalName for item in getPublicDataFormats()]
+        # allowedNames.append("multigraph.png")
+        # if filename not in allowedNames:
+        #     print("INVALID SAVE NAME")
+        #     print("The name is %s" % filename)
 
         print("File savename is %s" % fileSaveName)
         saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
@@ -256,6 +264,7 @@ def checkInconsistentOptions(optionsDict):
         [nanOptions, nanOptions],
         [[BOX_PLOT], [AVG_LINE, MULTI_PLOT]],
         # [GRAPH_TYPES, groupOptions],
+        # [FIRST_DATE, FROM_FIRST_VALID_DATE],
     ]
 
     for pair in inconsistentPairs:
@@ -287,10 +296,23 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
 
     # Fill in blank data and then drop data in line with date and weekend constraints
     hasNullOption = NULL_MEANS_MISSING in optionsDict or NULL_IS_ZERO in optionsDict
+
+    # BUG for graphing multiple series together, will only graph the intersection
+    # I.e. will drop for each set
+    # Is this desired behaviour?
+    # Seems to do this even if I take the dropping out
+    # Needs to be fixed in multiple places:
+    #       null type check, first date check, grouping
     if NULL_MEANS_MISSING in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_MEANS_MISSING):
         # myDf = myDf[myDf[fieldName].notnull()]
+
         myDf.drop(myDf[myDf[fieldName].isnull()].index, inplace=True)
     elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
+        # if FROM_FIRST_VALID_DATE in optionsDict:
+        #     indexFirstValidDate = myDf[fieldName].ne(0).idxmax()
+        #     if (isinstance(indexFirstValidDate,int)):
+        #         print("First date index %d" % indexFirstValidDate)
+        #         myDf.drop(myDf.index[0:max(indexFirstValidDate - 1, 0)], inplace=True)
         myDf[[fieldName]] = myDf[[fieldName]].fillna(0)
     else:
         print("Unrecognized nullType")
@@ -299,6 +321,7 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
     if FIRST_DATE in optionsDict:
         myDf.drop(myDf[myDf[DATE_FIELD] < optionsDict[FIRST_DATE]].index, inplace=True)
     else:
+        # BUG don't want to automatically drop
         firstDate = myDf[myDf[fieldName].notnull()].iloc[0][DATE_FIELD]
         myDf.drop(myDf[myDf[DATE_FIELD] < firstDate].index, inplace=True)
 
@@ -315,7 +338,10 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
         myDf[fieldName] = myDf[fieldName].shift(optionsDict[SHIFT])
     
     if NORMALIZE in optionsDict:
-        myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/myDf[fieldName].std()
+        stdDev = myDf[fieldName].std()
+        if (stdDev == 0):  stdDev = 1
+        # myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/myDf[fieldName].std()
+        myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/ stdDev
 
     if ROLLING_AVERAGE in optionsDict:
         if optionsDict[ROLLING_AVERAGE] not in [0, 1]:
@@ -328,10 +354,28 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
     return myDf
 
 
-def doubleScatterPlot(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
-    simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate, lastDate)
+def globalDataCleanup(df, optionsDict, fieldNames):
+    print("REMOVE")
+    return df
+    # return df
+    # elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
+    #     # if FROM_FIRST_VALID_DATE in optionsDict:
+    #     #     indexFirstValidDate = myDf[fieldName].ne(0).idxmax()
+    #     #     if (isinstance(indexFirstValidDate,int)):
+    #     #         print("First date index %d" % indexFirstValidDate)
+    #     #         myDf.drop(myDf.index[0:max(indexFirstValidDate - 1, 0)], inplace=True)
+    '''
+    How to handle drop earliest nonzero?
+        Currently dropping null for each series
+    '''
 
-def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False):
+# Probably broken by changes to simple linear regression
+# But not too hard to fix
+# def doubleScatterPlot(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
+#     simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate, lastDate)
+
+# def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False):
+def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False, filename=None):
     # Copy df to ensure not modified
     myDf = originalDf.copy()
     
@@ -342,12 +386,13 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
     # slrValidateOptions(options)
 
     if SHIFT in globalOptionsDict:
-        print("Shift cannot be a global option or it won't do anything")
+        raise(Exception("Shift cannot be a global option or it won't do anything"))
         exit()
 
 
-    xFieldName = xDataFormat.finalName
-    yFieldName = yDataFormat.finalName
+    dataFormatList = getDataFormatList()
+    xDataFormat = [format for format in dataFormatList if format.finalName == xFieldName][0]
+    yDataFormat = [format for format in dataFormatList if format.finalName == yFieldName][0]
 
     mergedOptions = xOptionsDict | yOptionsDict
     mergedOptions = mergedOptions | globalOptionsDict
@@ -360,6 +405,9 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
 
     myDf = dataCleanup(myDf, xOptionsDict, xFieldName, xDataFormat)
     myDf = dataCleanup(myDf, yOptionsDict, yFieldName, yDataFormat)
+
+    print("CHANGE THIS TO GLOBAL??? BUG")
+    myDf = groupAllByMaintainName([xFieldName, yFieldName], xOptionsDict, myDf)
 
     # Should unify grouping with linear graph grouping if possible, but it's not simple
     if WEEK_FIELD in globalOptionsDict:
@@ -389,20 +437,23 @@ def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict,
         stdX = xData.std()
         midY = yData.mean()
         stdY = yData.std()
-        plt.text(midX + 1.2 * stdX, midY + 1.5 * stdY, "Rsqr: %f" % rSquared)
+        # plt.text(midX + 1.2 * stdX, midY + 1.5 * stdY, "Rsqr: %f" % rSquared)
+        plt.text(midX, midY, "Rsqr: %f" % rSquared)
         plt.plot(xData, Y_pred, color='red')
         currentGraphName = xFieldName + yFieldName + graphTitle + "Regression"
     else:
         currentGraphName = xFieldName + yFieldName + "Scatter"
-    plt.title(currentGraphName)
+    plt.title(xFieldName + " " + yFieldName + " Regression")
     graphPath = os.environ.get(GRAPH_PATH_ENV_VARIABLE)
     if graphPath == None:
         print("ENVIRONMENTAL VARIABLE %s NOT SET. ABORTING SAVE." % GRAPH_PATH_ENV_VARIABLE)
     else:
-        plt.savefig(graphPath + currentGraphName + '.png')
+        fullPath = graphPath + filename
+        print("Saving to path %s" % fullPath)
+        plt.savefig(fullPath)
     plt.clf()
     plt.cla()
-    return rSquared
+    return currentGraphName
 
 def slrValidateOptions(optionsList):
     groupOptions = [MONTH_FIELD, WEEK_FIELD, DAY_OF_WEEK]
@@ -411,19 +462,21 @@ def slrValidateOptions(optionsList):
             raise(Exception("SLR Options Wrong"))
     return True
 
-def histogram(df, fieldName, optionsDict, dataFormat):
-    myDf = df.copy()
-    graphTitle = createTitleFromOptions(optionsDict, fieldName)
-
-    myDf = dataCleanup(myDf, optionsDict, fieldName, dataFormat)
-
-    myDf.drop(myDf[myDf[DATE_FIELD].dt.day_of_week > 5].index, inplace=True)
-    myDf = myDf[fieldName]
+def histogram(df, fieldName, optionsDict, fileSaveName):
+    myDf = df[fieldName]
     myDf.plot(kind='hist')
     myDf.plot.hist()
-    plt.savefig(GRAPH_PATH_FROM_SRC + graphTitle + '.png')
-    plt.cla()
-    plt.clf()
+    saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
+    if saveLocation == None:
+        # print("Saving to globalConstants save location %s" % GRAPH_PATH_FROM_SRC)
+        print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
+        return
+    else:
+        print("Saving to specified saveLocation %s" % saveLocation)
+        plt.title(fieldName)
+        plt.savefig(saveLocation + fileSaveName)
+        plt.cla()
+        plt.clf()
 
 
 def scatter(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
