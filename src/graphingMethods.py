@@ -136,7 +136,7 @@ def graphMultiple(fieldNames, optionsDict, originalDf, filename):
             break
     currentFieldName = fieldNames[0]
     myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat)
-    # myDf = globalDataCleanup(myDf, optionsDict, fieldNames)
+
     for currentFieldName in fieldNames:
         for format in myDataFormatList:
             if format.finalName == currentFieldName:
@@ -354,21 +354,6 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
     return myDf
 
 
-def globalDataCleanup(df, optionsDict, fieldNames):
-    print("REMOVE")
-    return df
-    # return df
-    # elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
-    #     # if FROM_FIRST_VALID_DATE in optionsDict:
-    #     #     indexFirstValidDate = myDf[fieldName].ne(0).idxmax()
-    #     #     if (isinstance(indexFirstValidDate,int)):
-    #     #         print("First date index %d" % indexFirstValidDate)
-    #     #         myDf.drop(myDf.index[0:max(indexFirstValidDate - 1, 0)], inplace=True)
-    '''
-    How to handle drop earliest nonzero?
-        Currently dropping null for each series
-    '''
-
 # Probably broken by changes to simple linear regression
 # But not too hard to fix
 # def doubleScatterPlot(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
@@ -394,8 +379,11 @@ def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, g
     xDataFormat = [format for format in dataFormatList if format.finalName == xFieldName][0]
     yDataFormat = [format for format in dataFormatList if format.finalName == yFieldName][0]
 
-    mergedOptions = xOptionsDict | yOptionsDict
-    mergedOptions = mergedOptions | globalOptionsDict
+    # Not supported in Python < 3.9
+    # mergedOptions = xOptionsDict | yOptionsDict
+    # mergedOptions = mergedOptions | globalOptionsDict
+    mergedOptions = { **xOptionsDict, **yOptionsDict }
+    mergedOptions = { **mergedOptions, **globalOptionsDict}
     graphTitle = createTitleFromOptions(mergedOptions, "")
 
     for key in globalOptionsDict:
@@ -406,7 +394,8 @@ def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, g
     myDf = dataCleanup(myDf, xOptionsDict, xFieldName, xDataFormat)
     myDf = dataCleanup(myDf, yOptionsDict, yFieldName, yDataFormat)
 
-    print("CHANGE THIS TO GLOBAL??? BUG")
+    # BUG Should make this process global to ensure only totally empty dates are dropped
+    # rather than every date that is missing for one series being graphed
     myDf = groupAllByMaintainName([xFieldName, yFieldName], xOptionsDict, myDf)
 
     # Should unify grouping with linear graph grouping if possible, but it's not simple
