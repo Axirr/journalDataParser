@@ -3,7 +3,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from privateSrc.myNewDataFormatList import *
+from privateSrc.privateDataFormatList import *
 from src.globalConstants import *
 from copy import copy
 import os
@@ -414,22 +414,22 @@ def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, g
     yData = myDf.iloc[:, myDf.columns.get_loc(yFieldName)].values.reshape(-1, 1)
     plt.xlabel(xFieldName)
     plt.ylabel(yFieldName)
-    plt.scatter(xData, yData)
+    ax = plt.scatter(xData, yData).axes
     rSquared = 0
     if not scatter:
         linearRegresser = LinearRegression()
         linearRegresser.fit(xData, yData)
         Y_pred = linearRegresser.predict(xData)
         rSquared = linearRegresser.score(xData,yData)
-        print("R-squared is %f" % rSquared)
-        midX = xData.mean()
-        stdX = xData.std()
-        midY = yData.mean()
-        stdY = yData.std()
-        # plt.text(midX + 1.2 * stdX, midY + 1.5 * stdY, "Rsqr: %f" % rSquared)
-        plt.text(midX, midY, "Rsqr: %f" % rSquared)
         plt.plot(xData, Y_pred, color='red')
         currentGraphName = xFieldName + yFieldName + graphTitle + "Regression"
+
+        # Print R Squared value in top right
+        # From: https://stackoverflow.com/questions/25771752/python-position-text-box-fixed-in-corner-and-correctly-aligned
+        ax.annotate("rSqr = %f" % rSquared, xy=(1, 1), xytext=(-15, -15), fontsize=10,
+        xycoords='axes fraction', textcoords='offset points',
+        bbox=dict(facecolor='white', alpha=0.8),
+        horizontalalignment='right', verticalalignment='top')
     else:
         currentGraphName = xFieldName + yFieldName + "Scatter"
     plt.title(xFieldName + " " + yFieldName + " Regression")
@@ -452,20 +452,30 @@ def slrValidateOptions(optionsList):
     return True
 
 def histogram(df, fieldName, optionsDict, fileSaveName):
-    myDf = df[fieldName]
-    myDf.plot(kind='hist')
-    myDf.plot.hist()
     saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
     if saveLocation == None:
         # print("Saving to globalConstants save location %s" % GRAPH_PATH_FROM_SRC)
         print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
         return
-    else:
-        print("Saving to specified saveLocation %s" % saveLocation)
-        plt.title(fieldName)
-        plt.savefig(saveLocation + fileSaveName)
-        plt.cla()
-        plt.clf()
+
+    myDf = df[fieldName]
+    myDf.plot(kind='hist')
+    ax = myDf.plot.hist()
+    nData = len(myDf)
+
+    # Right align n string to top right
+    # From: https://stackoverflow.com/questions/25771752/python-position-text-box-fixed-in-corner-and-correctly-aligned
+    ax.annotate("n = %d" % nData, xy=(1, 1), xytext=(-15, -15), fontsize=10,
+    xycoords='axes fraction', textcoords='offset points',
+    bbox=dict(facecolor='white', alpha=0.8),
+    horizontalalignment='right', verticalalignment='top')
+
+    print("Saving to specified saveLocation %s" % saveLocation)
+    print("CHANGE THIS, N ALWAWYS THE SAME")
+    plt.title(fieldName)
+    plt.savefig(saveLocation + fileSaveName)
+    plt.cla()
+    plt.clf()
 
 
 def scatter(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):

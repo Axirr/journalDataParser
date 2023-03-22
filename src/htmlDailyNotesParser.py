@@ -1,4 +1,4 @@
-from privateSrc.myDataFormatList import getDataFormatList, getPublicDataFormats
+from privateSrc.myHtmlDataFormatList import getDataFormatList
 from src.globalConstants import PARSER_INPUT_FILENAME, PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, HTML_PUBLIC_OUTPUT_FILE
 import re
 from sys import argv
@@ -37,11 +37,12 @@ def main(isPublic = False):
     parsedData = []
     currentDate = ""
 
-    if (isPublic):
-    # if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
-        dataFormatList = getPublicDataFormats()
-    else:
-        dataFormatList = getDataFormatList()
+    # if (isPublic):
+    # # if (len(argv) > 1 and READ_PUBLIC_ONLY_ARG in argv):
+    #     dataFormatList = getPublicDataFormats()
+    # else:
+    #     dataFormatList = getDataFormatList()
+    dataFormatList = getDataFormatList()
     for format in dataFormatList: print(format.finalName)
 
     logPrin("Parsing data from %s (inclusive) to %s (exclusive)." % (earliestDate, latestDateNotInclusive))
@@ -149,12 +150,14 @@ def main(isPublic = False):
     dataFieldNamesLength = len(topLine.split(','))
 
     # Write data to file
-    if (READ_PUBLIC_ONLY_ARG in argv):
-        print("Saving to %s" % HTML_PUBLIC_OUTPUT_FILE)
-        writeFile = open(HTML_PUBLIC_OUTPUT_FILE, 'w')
-    else:
-        print("Saving to %s" % PARSER_OUTPUT_FILENAME)
-        writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
+    print("always saving to non-public")
+    # if (READ_PUBLIC_ONLY_ARG in argv):
+    #     print("Saving to %s" % HTML_PUBLIC_OUTPUT_FILE)
+    #     writeFile = open(HTML_PUBLIC_OUTPUT_FILE, 'w')
+    # else:
+    #     print("Saving to %s" % PARSER_OUTPUT_FILENAME)
+    #     writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
+    writeFile = open(PARSER_OUTPUT_FILENAME, 'w')
     # writeFile = open("dailyDataTo" + currentDate + ".csv", 'w')
     writeFile.write(topLine + '\n')
 

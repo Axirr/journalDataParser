@@ -1,5 +1,5 @@
-from privateSrc.myNewDataFormatList import getDataFormatList, getPublicDataFormats
-from src.globalConstants import NEW_PARSER_OUTPUT_FILENAME, PARSER_NULL_VALUE, READ_PUBLIC_ONLY_ARG, PLAINTEXT_PUBLIC_OUTPUT_FILE, PLAINTEXT_INPUT_FILES, EARLIEST_DATE_FOR_FILE
+from privateSrc.privateDataFormatList import *
+from src.globalConstants import *
 from sys import argv
 import re
 from time import sleep
@@ -12,9 +12,11 @@ def main(isPublic = False):
     if (isPublic):
         print("Reading public data types ONLY")
         dataFormatList = getPublicDataFormats()
+        uniqueFinalNameDataFormats = publicGetUniqueFinalNameDataFormats()
     else:
         print("Reading all data types, not just public")
         dataFormatList = getDataFormatList()
+        uniqueFinalNameDataFormats = getUniqueFinalNameDataFormats()
     sleep(2)
     
     todayDate = date.today()
@@ -24,8 +26,11 @@ def main(isPublic = False):
     sleep(2)
 
 
+
     # Header for CSV file
-    topLine = createTopLine(dataFormatList)
+    print("length dataFormats %d" % len(dataFormatList))
+    print("length unqiue dataFormats %d" % len(uniqueFinalNameDataFormats))
+    topLine = createTopLine(uniqueFinalNameDataFormats)
 
     parsedData = []
     for i in range(len(PLAINTEXT_INPUT_FILES)):
@@ -183,21 +188,27 @@ def isField(line, dataFormatList, currentDate, f):
 def readDataFormatList(dataFormatList, f, line, currentDate, tabLineStacks):
     returnDict = {}
     for dataFormat in dataFormatList:
-        if dataFormat.searchName in line:
+        searchNameRegularExpression = re.escape(dataFormat.searchName)
+        # if dataFormat.searchName in line:
+        if re.search(searchNameRegularExpression, line) != None:
             if dataFormat.lineInstructions[-1] == dataFormat.searchName:
                 returnedData = parseMultiLine(dataFormat,f, currentDate, line)
                 if (len(returnedData) == 2):
                     returnDict[returnedData[0]] = returnedData[1]
+                    # Break on successful match assumes you cannot validly find two data points in one line
+                    break
             else:
                 currentAbove = tabLineStacks[-1]
-                currentAbove = currentAbove.strip()
-                currentAbove = currentAbove.rstrip('\t')
-                currentAbove = currentAbove.lstrip('\t')
-                currentAbove = currentAbove.rstrip(':')
-                if currentAbove == dataFormat.lineInstructions[-1]:
-                    returnedData = parseMultiLine(dataFormat,f, currentDate, line)
+                # print("BUG WARNING, THIS COULD BREAK THINGS")
+                # if currentAbove == dataFormat.lineInstructions[-1]:
+                regExpForParent = re.escape(dataFormat.lineInstructions[-1])
+                if re.search(regExpForParent, currentAbove):
+                # if dataFormat.lineInstructions[-1] in currentAbove:
+                    returnedData = parseMultiLine(dataFormat, f, currentDate, line)
                     if (len(returnedData) == 2):
                         returnDict[returnedData[0]] = returnedData[1]
+                        # Break on successful match assumes you cannot validly find two data points in one line
+                        break
     return returnDict
 
 def subListDataSearch(dataFormatList, f, line, currentDate):
@@ -267,6 +278,17 @@ def sharedDataParse(line, fieldName, separator, currentDate, validType, useDefau
                     resultList.append('0')
                 else:
                     raise("BOOL PARSE ERROR")
+            elif validType == HOUR_MINUTE_STRING:
+                hourMinutePattern = '[0-9]+h[0-9]+m?'
+                if (re.search(hourMinutePattern, workingLine) != None):
+                    myHourSplitLine = workingLine.split('h')
+                    hourString = myHourSplitLine[0]
+                    minuteString = myHourSplitLine[1].lstrip("m")
+                    minutes = str(int(hourString) * 60 + int(minuteString))
+                    resultList.append(fieldName)
+                    resultList.append(minutes)
+                else:
+                    print("hour minute parse error")
             elif validType == "string":
                 resultList.append(fieldName)
                 resultList.append(workingLine)
@@ -302,6 +324,10 @@ def parseMultiLine(lineFormat, f, currentDate, currentLine):
 # Creates CSV header based on dataformat list (including subformats), without a new line
 def createTopLine(dataFormatList):
     line = "date,"
+
+    # Remove duplicate names
+    # dataFormatList = list(set(dataFormatList))
+
     for i in range(len(dataFormatList)):
         data = dataFormatList[i]
         line += data.finalName + ","
