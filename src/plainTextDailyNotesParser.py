@@ -17,13 +17,13 @@ def main(isPublic = False):
         print("Reading all data types, not just public")
         dataFormatList = getDataFormatList()
         uniqueFinalNameDataFormats = getUniqueFinalNameDataFormats()
-    sleep(2)
+    #sleep(2)
     
     todayDate = date.today()
     automaticEndDate = todayDate.strftime("%B %d, %Y").replace(" 0", " ").lower()
     print("Reading up to (but not including) today's date (%s)" %automaticEndDate)
     print()
-    sleep(2)
+    #sleep(2)
 
 
 
@@ -100,15 +100,13 @@ def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate, f
         for letter in line:
             if letter == '\t':
                 count += 1
-
+        
         if len(nonFieldLinesForTabLine) > 0:
             nonFieldLinesForTabLine[-1].append(previousLine)
         if count < oldTabLevel:
             for i in range(oldTabLevel - count):
-                try:
-                    printStack.append([tabLineStacks.pop(), nonFieldLinesForTabLine.pop()])
-                except:
-                    pass
+                tempList = [tabLineStacks.pop(), nonFieldLinesForTabLine.pop()]
+                printStack.append(tempList)
         elif count > oldTabLevel:
             tabLineStacks.append(previousLine)
             nonFieldLinesForTabLine.append([])
@@ -162,6 +160,7 @@ def readForFile(currentFileName, dataFormatList, topLine, currentEarliestDate, f
         resultDict = readDataFormatList(dataFormatList, f, line, currentDate, tabLineStacks)
 
         for key in resultDict:
+            # print("key %s value %s" % (key, resultDict[key]))
             dataDict[key] = resultDict[key]
 
         previousLine = line
@@ -250,8 +249,8 @@ def sharedDataParse(line, fieldName, separator, currentDate, validType, useDefau
     isParseError = False
     workingLine = ""
     removalList = customRemoval
-    if fieldName == "EBreathingType":
-        pass
+    # if fieldName == "EBreathingType":
+    #     pass
     if useDefaultRemoval:
         removalList += ['<b>', '</b>', '<li>', '</li>', '<br />', '&nbsp;', ';', '\n'] 
     try:
@@ -261,23 +260,38 @@ def sharedDataParse(line, fieldName, separator, currentDate, validType, useDefau
         isParseError = True
     if not isParseError:
         try:
-            if validType == "float":
+            if validType == FLOAT_DATA_TYPE:
                 float(workingLine)
                 resultList.append(fieldName)
                 resultList.append(workingLine)
-            elif validType == "int":
+            elif validType == INT_DATA_TYPE:
                 int(workingLine)
                 resultList.append(fieldName)
                 resultList.append(workingLine)
-            elif validType == "bool":
-                if workingLine in ['yes', 'y', '1']:
-                    resultList.append(fieldName)
-                    resultList.append('1')
-                elif workingLine in ['no', 'n', '0']:
-                    resultList.append(fieldName)
-                    resultList.append('0')
-                else:
-                    raise("BOOL PARSE ERROR")
+            elif validType == BOOL_DATA_TYPE:
+                yesRegExp = [re.escape('yes'), re.escape('y'), re.escape('1')]
+                noRegExp = [re.escape('no'), re.escape('n'), re.escape('0')]
+                isFound = False
+                for regExp in yesRegExp:
+                    if re.search(regExp, workingLine) != None:
+                # if workingLine in ['yes', 'y', '1']:
+                        resultList.append(fieldName)
+                        resultList.append('1')
+                        isFound = True
+                        break
+                if not isFound:
+                    # workingLine in ['no', 'n', '0']:
+                    for regExp in noRegExp:
+                        if re.search(regExp, workingLine) != None:
+                            resultList.append(fieldName)
+                            resultList.append('0')
+                            isFound = True
+                            break
+                if not isFound:
+                    print("line %s" % line)
+                    print("currentDate %s" % currentDate)
+                    print("workingLine %s" % workingLine)
+                    print("BOOL PARSE ERROR")
             elif validType == HOUR_MINUTE_STRING:
                 hourMinutePattern = '[0-9]+h[0-9]+m?'
                 if (re.search(hourMinutePattern, workingLine) != None):
@@ -307,7 +321,8 @@ def sharedDataParse(line, fieldName, separator, currentDate, validType, useDefau
                 isParseError = True
     else:
         isParseError = True
-    if isParseError and fieldName not in ["eveningBreathingBool", "morningBreathingBool"]:
+    # if isParseError and fieldName not in ["eveningBreathingBool", "morningBreathingBool"]:
+    if isParseError:
         logPrin("parse error for " + fieldName)
         logPrin(currentDate)
         logPrin(workingLine)

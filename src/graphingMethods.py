@@ -8,123 +8,7 @@ from src.globalConstants import *
 from copy import copy
 import os
 
-
-def lineGraphWithOptions(currentFieldName, currentGraphName, originalDf, optionsDict, dataFormat, secondDF = None, dfToPlot=None, saveLocation=None, saveName=None):
-    myDf = originalDf.copy(deep=True)
-    print("Deleting keys on original optionals dict to ensure processing is bad, should remove or do on copy")
-
-    checkInconsistentOptions(optionsDict)
-
-    if currentGraphName != "test":
-        currentGraphName = createTitleFromOptions(optionsDict, currentGraphName)
-
-    ###
-    # Individual data cleanup
-    ###
-
-    myDf[currentGraphName] = myDf[currentFieldName]
-
-    myDf = dataCleanup(myDf, optionsDict, currentGraphName, dataFormat)
-
-    # Aggregation
-    # Groupings inconsistent with each other so are alternative and will cause error if both included
-    # Establish X values
-    hadDayOfWeek = False
-    hadWeekly = False
-    if not BOX_PLOT in optionsDict:
-        if WEEK_FIELD in optionsDict:
-            hadWeekly = True
-            mySeries = myDf.groupby(WEEK_FIELD)[currentGraphName].mean()
-            myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-            del optionsDict[WEEK_FIELD]
-        elif DAY_OF_WEEK in optionsDict:
-            mySeries = myDf.groupby(DAY_OF_WEEK)[currentGraphName].mean()
-            myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-            hadDayOfWeek = True
-            del optionsDict[DAY_OF_WEEK]
-        elif MONTH_FIELD in optionsDict:
-            mySeries = myDf.groupby(MONTH_FIELD)[currentGraphName].mean()
-            myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-            del optionsDict[MONTH_FIELD]
-        
-        if BAR_OPTION in optionsDict:
-            mySeries = myDf.groupby(optionsDict[BAR_OPTION])[currentGraphName].mean()
-            myDf = pd.DataFrame({DATE_FIELD: mySeries.index, currentGraphName: mySeries.values})
-
-    yRangeTuple = (None, None)
-
-    # If multi-plot, will automatically size to include max and min of both unless overridden
-    # using Y_MIN or Y_MAX
-    if not secondDF is None:
-        bothMax = max(secondDF[secondDF.columns[1]].max(), myDf[currentGraphName].max())
-        bothMin = min(secondDF[secondDF.columns[1]].min(), myDf[currentGraphName].min())
-        yRangeTuple = (bothMin, bothMax)
-
-    if Y_MAX in optionsDict:
-        yRangeTuple = (yRangeTuple[0], optionsDict[Y_MAX])
-        del optionsDict[Y_MAX]
-    
-    if Y_MIN in optionsDict:
-        yRangeTuple = (optionsDict[Y_MIN], yRangeTuple[1])
-        del optionsDict[Y_MIN]
-    
-    if MULTI_PLOT in optionsDict:
-        myDf = myDf[[DATE_FIELD, currentGraphName]]
-        return myDf
-
-    # Plotting regular graph
-    # if BAR_OPTION in optionsDict or hadDayOfWeek or hadWeekly:
-    if BAR_OPTION in optionsDict:
-        # if BAR_OPTION in optionsDict:
-        #     del optionsDict[BAR_OPTION]
-        if not secondDF is None:
-            myDf = pd.merge(myDf, secondDF, on=DATE_FIELD)
-            ax = myDf.plot.bar(x=DATE_FIELD, y=[myDf.columns[1], myDf.columns[2]])
-        else:
-            ax = myDf.plot.bar(x=DATE_FIELD, ylim=yRangeTuple)
-        if hadDayOfWeek:
-            dayNames = ["Mon", "Tues", "Wed", "Thurs", "Fri", "Sat", "Sun"]
-            ax.set_xticks(range(0,7))
-            ax.set_xticklabels(dayNames)
-    elif BOX_PLOT in optionsDict:
-        myDf = myDf.boxplot(column=[currentFieldName], by=[optionsDict[BOX_PLOT]])
-        ax = myDf.plot()
-        # del optionsDict[BOX_PLOT]
-    else:
-        myDf = myDf[[DATE_FIELD, currentGraphName]]
-        ax = myDf.plot(x=DATE_FIELD, ylim=yRangeTuple)
-        if not secondDF is None:
-            secondDF.plot(x=DATE_FIELD, y=secondDF.columns[1] ,ax=ax)
-    
-    # Plotting average line, if specified
-    if AVG_LINE in optionsDict:
-        del optionsDict[AVG_LINE]
-        myAverage = myDf[currentGraphName].mean()
-        plt.axhline(y=myAverage, color='r', linestyle='-')
-
-    # Save plot and clear plot for next ones
-    fileSaveName = currentFieldName + '.png'
-    if fileSaveName != None:
-        # allowedNames = [item.finalName for item in getPublicDataFormats()]
-        # if saveName not in allowedNames:
-        #     print("INVALID SAVE NAME")
-        #     print("The name is %s" % saveName)
-        #     return
-        fileSaveName = saveName
-    print("File savename is %s" % fileSaveName)
-
-    saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
-    if saveLocation == None:
-        print("SAVE LOCATION ENVIRONEMNTAL VARIABLE NOT SET. ABORTING FILE SAVE")
-    else:
-        print("Saving to %s" % saveLocation)
-        plt.savefig(saveLocation + fileSaveName)
-
-    plt.clf()
-    plt.cla()
-    plt.close()
-
-def graphMultiple(fieldNames, optionsDict, originalDf, filename):
+def graphMultiple(fieldNames, optionsDict, originalDf, filename, soloOptionsDict = {}):
     checkInconsistentOptions(optionsDict)
 
     myDf = originalDf.copy()
@@ -134,17 +18,28 @@ def graphMultiple(fieldNames, optionsDict, originalDf, filename):
         if format.finalName == fieldNames[0]:
             currentDataFormat = format
             break
-    currentFieldName = fieldNames[0]
-    myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat)
 
+    dropAllNull = False
+    if ONLY_INTERSECTION_OPTION in optionsDict:
+        dropAllNull = True
+    
+
+    firstFieldName = fieldNames[0]
     for currentFieldName in fieldNames:
         for format in myDataFormatList:
             if format.finalName == currentFieldName:
                 currentDataFormat = format
                 break
-        # newDf = lineGraphWithOptions(currentFieldName, currentFieldName, myDf, multiPlotOptionsDict, currentDataFormat)
-        myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat)
+        if (currentFieldName == firstFieldName and len(soloOptionsDict) > 0):
+            myDf = dataCleanup(myDf, soloOptionsDict, currentFieldName, currentDataFormat, dropAllNull=False)
+        myDf = dataCleanup(myDf, optionsDict, currentFieldName, currentDataFormat, dropAllNull)
+    
+
     myDf = dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf)
+
+    if dropAllNull:
+        myDf = myDf.dropna(how="any")
+
     if (not BOX_PLOT in optionsDict and not HISTOGRAM in optionsDict):
         myDf = groupAllByMaintainName(fieldNames, optionsDict, myDf)
     if (not HISTOGRAM in optionsDict):
@@ -157,12 +52,7 @@ def dropNonNameOrGroupColumns(fieldNames, optionsDict, myDf):
     workingFieldNames = copy(fieldNames)
     workingFieldNames.append(getGroupColumnName(optionsDict))
     columnsToDrop = [col for col in myDf.columns if col not in workingFieldNames]
-    # print("Columns to drop")
-    # print(columnsToDrop)
     myDf = myDf.drop(columnsToDrop, axis=1)
-    # for col in myDf.columns:
-    #     if col not in workingFieldNames:
-    #         myDf.drop(col)
     print(myDf.columns)
     return myDf
 
@@ -176,15 +66,18 @@ def groupAllByMaintainName(fieldNames, optionsDict, inputDf):
     return constructedDf
 
 def getGroupColumnName(optionsDict):
-    groupField = DATE_FIELD
-    if (WEEK_FIELD in optionsDict):
+    if (DATE_FIELD in optionsDict or ROLLING_AVERAGE in optionsDict):
+        groupField = DATE_FIELD
+    elif (WEEK_FIELD in optionsDict):
         groupField = WEEK_FIELD
     elif (MONTH_FIELD in optionsDict):
         groupField = MONTH_FIELD
     elif (DAY_OF_WEEK in optionsDict):
         groupField = DAY_OF_WEEK
+    elif (YEAR_FIELD in optionsDict):
+        groupField = YEAR_FIELD
     else:
-        print("WARNING, NO VALID TIME GROUP FOUND")
+        raise Exception("WARNING, NO VALID TIME GROUP FOUND")
     return groupField
 
 
@@ -212,17 +105,9 @@ def graphAllColumns(optionsDict, myDf, filename):
     if (REMOVE_LEGEND in optionsDict):
         ax.get_legend().remove()
 
-    # IMPLEMENT AVG LINE? DOES IT MAKE SENSE FOR MULTIPLE DATA
-
     fileSaveName = filename
 
     if filename != None:
-        # allowedNames = [item.finalName for item in getPublicDataFormats()]
-        # allowedNames.append("multigraph.png")
-        # if filename not in allowedNames:
-        #     print("INVALID SAVE NAME")
-        #     print("The name is %s" % filename)
-
         print("File savename is %s" % fileSaveName)
         saveLocation = os.environ.get('GRAPH_SAVE_LOCATION')
         if saveLocation == None:
@@ -291,39 +176,36 @@ def checkMandatoryOptions(optionsDict, mandatoryPairs):
                 if not hasOption:
                     raise(Exception("Mandatory Options Error " + str(options) + " " + str(mandatoryOptions)))
 
-def dataCleanup(df, optionsDict, fieldName, dataFormat):
+def dataCleanup(df, optionsDict, fieldName, dataFormat, dropAllNull = True):
     myDf = df.copy()
 
     # Fill in blank data and then drop data in line with date and weekend constraints
     hasNullOption = NULL_MEANS_MISSING in optionsDict or NULL_IS_ZERO in optionsDict
 
-    # BUG for graphing multiple series together, will only graph the intersection
-    # I.e. will drop for each set
-    # Is this desired behaviour?
-    # Seems to do this even if I take the dropping out
-    # Needs to be fixed in multiple places:
-    #       null type check, first date check, grouping
-    if NULL_MEANS_MISSING in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_MEANS_MISSING):
-        # myDf = myDf[myDf[fieldName].notnull()]
+    if dropAllNull:
+        if NULL_MEANS_MISSING in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_MEANS_MISSING):
 
-        myDf.drop(myDf[myDf[fieldName].isnull()].index, inplace=True)
-    elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
-        # if FROM_FIRST_VALID_DATE in optionsDict:
-        #     indexFirstValidDate = myDf[fieldName].ne(0).idxmax()
-        #     if (isinstance(indexFirstValidDate,int)):
-        #         print("First date index %d" % indexFirstValidDate)
-        #         myDf.drop(myDf.index[0:max(indexFirstValidDate - 1, 0)], inplace=True)
-        myDf[[fieldName]] = myDf[[fieldName]].fillna(0)
-    else:
-        print("Unrecognized nullType")
-        exit()
+            myDf.drop(myDf[myDf[fieldName].isnull()].index, inplace=True)
+        elif NULL_IS_ZERO in optionsDict or (not hasNullOption and dataFormat.nullType == NULL_IS_ZERO):
+            # if FROM_FIRST_VALID_DATE in optionsDict:
+            #     indexFirstValidDate = myDf[fieldName].ne(0).idxmax()
+            #     if (isinstance(indexFirstValidDate,int)):
+            #         print("First date index %d" % indexFirstValidDate)
+            #         myDf.drop(myDf.index[0:max(indexFirstValidDate - 1, 0)], inplace=True)
+            myDf[[fieldName]] = myDf[[fieldName]].fillna(0)
+        else:
+            raise Exception("Unrecognized nullType")
 
-    if FIRST_DATE in optionsDict:
-        myDf.drop(myDf[myDf[DATE_FIELD] < optionsDict[FIRST_DATE]].index, inplace=True)
+        if FIRST_DATE in optionsDict:
+            myDf.drop(myDf[myDf[DATE_FIELD] < optionsDict[FIRST_DATE]].index, inplace=True)
+        # BUG how to handle for data I've filled 0's in for?
+        else:
+            notNullData = myDf[fieldName].notnull()
+            if len(notNullData) > 0:
+                firstDate = myDf[myDf[fieldName].notnull()].iloc[0][DATE_FIELD]
+                myDf.drop(myDf[myDf[DATE_FIELD] < firstDate].index, inplace=True)
     else:
-        # BUG don't want to automatically drop
-        firstDate = myDf[myDf[fieldName].notnull()].iloc[0][DATE_FIELD]
-        myDf.drop(myDf[myDf[DATE_FIELD] < firstDate].index, inplace=True)
+        print("Not dropping nulls for each datatype")
 
     if LAST_DATE in optionsDict:
         myDf.drop(myDf[myDf[DATE_FIELD] > optionsDict[LAST_DATE]].index, inplace=True)
@@ -332,15 +214,12 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
         myDf.drop(myDf[myDf[DAY_OF_WEEK] > 5].index, inplace=True)
 
 
-    # Data still around is what we want (e.g. no weekend) now modify as required with shift, normalize, average, etc.
     if SHIFT in optionsDict:
-        # myDf[fieldName] = myDf[fieldName].shift(optionsDict[SHIFT])
         myDf[fieldName] = myDf[fieldName].shift(optionsDict[SHIFT])
     
     if NORMALIZE in optionsDict:
         stdDev = myDf[fieldName].std()
         if (stdDev == 0):  stdDev = 1
-        # myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/myDf[fieldName].std()
         myDf[fieldName] = (myDf[fieldName]-myDf[fieldName].mean())/ stdDev
 
     if ROLLING_AVERAGE in optionsDict:
@@ -348,8 +227,6 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
             myDf[fieldName] = myDf.rolling(window=optionsDict[ROLLING_AVERAGE])[fieldName].mean()
         else:
             print("Not using invalid rolling average value of %d." % optionsDict[ROLLING_AVERAGE])
-
-    myDf = myDf[myDf[fieldName].notna()]
     
     return myDf
 
@@ -359,16 +236,14 @@ def dataCleanup(df, optionsDict, fieldName, dataFormat):
 # def doubleScatterPlot(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None):
 #     simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate, lastDate)
 
-# def simpleLinearRegression(xDataFormat, yDataFormat, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False):
 def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, globalOptionsDict, originalDf, firstDate = None, lastDate = None, scatter = False, filename=None):
-    # Copy df to ensure not modified
     myDf = originalDf.copy()
     
     # Check that options are not inconsistent and are allowed for regression
     # Raises error if problem
     options = set(xOptionsDict.keys()) | set(yOptionsDict.keys()) | set(globalOptionsDict.keys())
     checkInconsistentOptions(options)
-    # slrValidateOptions(options)
+    slrValidateOptions(options)
 
     if SHIFT in globalOptionsDict:
         raise(Exception("Shift cannot be a global option or it won't do anything"))
@@ -379,36 +254,21 @@ def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, g
     xDataFormat = [format for format in dataFormatList if format.finalName == xFieldName][0]
     yDataFormat = [format for format in dataFormatList if format.finalName == yFieldName][0]
 
-    # Not supported in Python < 3.9
-    # mergedOptions = xOptionsDict | yOptionsDict
-    # mergedOptions = mergedOptions | globalOptionsDict
     mergedOptions = { **xOptionsDict, **yOptionsDict }
     mergedOptions = { **mergedOptions, **globalOptionsDict}
     graphTitle = createTitleFromOptions(mergedOptions, "")
 
     for key in globalOptionsDict:
         xOptionsDict[key] = globalOptionsDict[key]
-        # used to only add to xOptions
         yOptionsDict[key] = globalOptionsDict[key]
 
     myDf = dataCleanup(myDf, xOptionsDict, xFieldName, xDataFormat)
     myDf = dataCleanup(myDf, yOptionsDict, yFieldName, yDataFormat)
 
-    # BUG Should make this process global to ensure only totally empty dates are dropped
-    # rather than every date that is missing for one series being graphed
     myDf = groupAllByMaintainName([xFieldName, yFieldName], xOptionsDict, myDf)
 
-    # Should unify grouping with linear graph grouping if possible, but it's not simple
-    if WEEK_FIELD in globalOptionsDict:
-        mySeries = myDf.groupby(WEEK_FIELD)[[xFieldName, yFieldName]].mean()
-        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
-    elif MONTH_FIELD in globalOptionsDict:
-        mySeries = myDf.groupby(MONTH_FIELD)[[xFieldName, yFieldName]].mean()
-        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
-    elif DAY_OF_WEEK in globalOptionsDict:
-        mySeries = myDf.groupby(DAY_OF_WEEK)[[xFieldName, yFieldName]].mean()
-        myDf = pd.DataFrame({xFieldName: mySeries[xFieldName], yFieldName: mySeries[yFieldName]})
-    
+    # Need this dropnan for rolling average at least (since first N days will be nan)
+    myDf = myDf.dropna(how="any")
 
     xData = myDf.iloc[:, myDf.columns.get_loc(xFieldName)].values.reshape(-1, 1)
     yData = myDf.iloc[:, myDf.columns.get_loc(yFieldName)].values.reshape(-1, 1)
@@ -445,7 +305,9 @@ def simpleLinearRegression(xFieldName, yFieldName, xOptionsDict, yOptionsDict, g
     return currentGraphName
 
 def slrValidateOptions(optionsList):
-    groupOptions = [MONTH_FIELD, WEEK_FIELD, DAY_OF_WEEK]
+    print("not implented")
+    return True
+    groupOptions = [MONTH_FIELD, WEEK_FIELD, DAY_OF_WEEK, YEAR_FIELD]
     for option in optionsList:
         if option in groupOptions:
             raise(Exception("SLR Options Wrong"))
@@ -499,4 +361,5 @@ def setDates(df):
     df[MONTH_FIELD] = df[DATE_FIELD].apply(lambda x: (x.year, x.month))
     df[WEEK_FIELD] = df[DATE_FIELD].apply(lambda x: (x.year, x.weekofyear) if not (x.month == 1 and x.weekofyear == 52) else (x.year - 1, x.weekofyear))
     df[DAY_OF_WEEK] = df[DATE_FIELD].apply(pd.Timestamp.isoweekday)
+    df[YEAR_FIELD] = df[DATE_FIELD].apply(lambda x: x.year)
     return df
